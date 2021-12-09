@@ -3,6 +3,7 @@
 #include <seccomp.h>
 
 char fn[0x20];
+char ROP[0x100];
 
 int main()
 {
@@ -21,9 +22,12 @@ int main()
     printf("Give me filename: ");
     read(0, fn, 0x20);
 
-    char ROP[0x10];
     printf("Give me ROP: ");
     read(0, ROP, 0x100);
+
+    char overflow[0x10];
+    printf("Give me overflow: ");
+    read(0, overflow, 0x30);
 
     return 0;
 }
