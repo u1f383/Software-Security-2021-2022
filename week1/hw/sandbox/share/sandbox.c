@@ -87,9 +87,9 @@ const char *call_reg_patterns[] = {
 void syscall_monitor()
 {
     UPDATE_REGS();
-    if (regs.rax == 2) {
-        printf("[sys_close] rdi: 0x%lx, rsi: 0x%lx, rdx: 0x%lx\n", regs.rdi, regs.rsi, regs.rdx);
-        close(regs.rdi);
+    if (regs.rax == 60) {
+        printf("[sys_exit] rdi: 0x%lx, rsi: 0x%lx, rdx: 0x%lx\n", regs.rdi, regs.rsi, regs.rdx);
+        exit(regs.rdi);
     } else {
         write(1, "Disallow !!\n", 12);
     }
@@ -122,8 +122,8 @@ int main()
     char shellcode[0x280] = {0};
     char prologue[20];
 
-    stack = (char *) mmap(NULL, 0x8000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0) + 0x4000;
-    new_code_buf = (char *) mmap(NULL, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC,
+    stack = (char *) mmap((void *) 0x30000, 0x8000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0) + 0x4000;
+    new_code_buf = (char *) mmap((void *) 0x40000, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC,
                                 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
     // mov rbp, XXXX
