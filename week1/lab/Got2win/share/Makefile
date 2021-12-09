@@ -1,2 +1,2 @@
 all:
-	gcc -g -no-pie -o $@ $@.c
+	gcc -g -no-pie -o got2win got2win.c

@@ -1,2 +1,2 @@
 all:
-	gcc -g -o $@ $@.c
+	gcc -g -o sandbox sandbox.c
