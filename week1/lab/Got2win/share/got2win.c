@@ -10,7 +10,7 @@ int main()
     setvbuf(stdin, 0, _IONBF, 0);
     setvbuf(stdout, 0, _IONBF, 0);
 
-    int fd = open("./flag", O_RDONLY);
+    int fd = open("/home/got2win/flag", O_RDONLY);
     read(fd, flag, 0x30);
     close(fd);
     write(1, "Good luck !\n", 13);
