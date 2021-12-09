@@ -1,0 +1,13 @@
+service sandbox
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/sandbox/run.sh
+    user = sandbox
+    port = 30202
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

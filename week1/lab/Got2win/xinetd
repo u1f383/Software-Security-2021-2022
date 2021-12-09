@@ -1,0 +1,13 @@
+service got2win
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/got2win/run.sh
+    user = got2win
+    port = 30203
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

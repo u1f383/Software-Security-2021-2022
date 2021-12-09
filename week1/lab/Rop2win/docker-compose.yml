@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  rop2win:
+    build: ./
+    volumes:
+      - ./share:/home/rop2win:ro
+      - ./xinetd:/etc/xinetd.d/rop2win:ro
+    ports:
+      - "30204:30204"
+    expose:
+      - "30204"
