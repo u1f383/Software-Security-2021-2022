@@ -91,13 +91,13 @@ void syscall_monitor()
         printf("[sys_close] rdi: 0x%lx, rsi: 0x%lx, rdx: 0x%lx\n", regs.rdi, regs.rsi, regs.rdx);
         close(regs.rdi);
     } else {
-        write(1, "Disallow !!\n", 13);
+        write(1, "Disallow !!\n", 12);
     }
 }
 
 void call_reg_monitor()
 {
-    write(1, "Disallow !!\n", 13);
+    write(1, "Disallow !!\n", 12);
 }
 
 void jmp_func(char *sc, int *idx, unsigned long func)
