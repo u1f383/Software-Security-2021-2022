@@ -1,0 +1,13 @@
+service market
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/market/run.sh
+    user = market
+    port = 30209
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

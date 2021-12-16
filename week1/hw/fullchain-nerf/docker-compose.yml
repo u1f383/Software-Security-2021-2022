@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  fullchain-nerf:
+    build: ./
+    volumes:
+      - ./share:/home/fullchain-nerf:ro
+      - ./xinetd:/etc/xinetd.d/fullchain-nerf:ro
+    ports:
+      - "30206:30206"
+    expose:
+      - "30206"

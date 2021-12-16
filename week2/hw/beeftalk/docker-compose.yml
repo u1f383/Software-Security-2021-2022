@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  beeftalk:
+    build: ./
+    volumes:
+      - ./share:/home/beeftalk:ro
+      - ./xinetd:/etc/xinetd.d/beeftalk:ro
+    ports:
+      - "30207:30207"
+    expose:
+      - "30207"

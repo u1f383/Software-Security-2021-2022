@@ -126,10 +126,8 @@ int main()
     new_code_buf = (char *) mmap((void *) 0x40000, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC,
                                 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-    // mov rbp, XXXX
     memcpy(prologue+0, "H\xbc", 2);
     memcpy(prologue+2, &stack, 8);
-    // mov rsp, XXXX
     memcpy(prologue+10, "H\xbd", 2);
     memcpy(prologue+12, &stack, 8);
 
