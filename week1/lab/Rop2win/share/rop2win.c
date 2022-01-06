@@ -5,6 +5,11 @@
 char fn[0x20];
 char ROP[0x100];
 
+
+// fd = open("flag", 0);
+// read(fd, buf, 0x30);
+// write(1, buf, 0x30); // 1 --> stdout
+
 int main()
 {
     setvbuf(stdin, 0, _IONBF, 0);

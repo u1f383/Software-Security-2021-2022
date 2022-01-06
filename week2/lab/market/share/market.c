@@ -68,7 +68,7 @@ int main()
     you->secret = malloc(size);
 
     printf("What's your secret ?\n> ");
-    read(0, you->secret, size-1);
+    read(0, you->secret, size);
 
     unsigned long opt = 0;
     while (1)
@@ -76,6 +76,8 @@ int main()
         puts("1. new name");
         puts("2. show secret");
         puts("3. steal the secret of admin");
+        puts("4. new secret");
+        printf("> ");
         opt = readu64();
 
         if (opt == 1) {
@@ -90,6 +92,14 @@ int main()
                 puts("you has been killed by admin");
                 exit(1);
             }
+        } else if (opt == 4) {
+            free(you->secret);
+            printf("How long is your secret ?\n> ");
+            size = readu64();
+            you->secret = malloc(size);
+
+            printf("What's your secret ?\n> ");
+            read(0, you->secret, size);
         } else {
             puts("bye ~");
             break;

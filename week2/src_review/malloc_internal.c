@@ -8,6 +8,7 @@ __libc_malloc (size_t bytes)
   mstate ar_ptr;
   void *victim; // victim 會指向要被回傳的 chunk
 
+  // ! 初始化 heap
   // 如果 __malloc_hook 有定義的話，就會以 __malloc_hook 為 function pointer 去呼叫
   // 一開始的 __malloc_hook 會存放用來初始化 heap 的 function "ptmalloc_init()"
   void *(*hook) (size_t, const void *)
@@ -23,12 +24,13 @@ __libc_malloc (size_t bytes)
       return NULL;
     }
   size_t tc_idx = csize2tidx (tbytes);
+  // ! 初始化 tcache
   // 如果 tcache_perthread_struct 的結構還沒有被建立，則會呼叫 tcache_init()，
   // tcache_init() 會去請求 chunk size 為 0x290 的 chunk 給 tcache_perthread_struct，
   // 並將 tcache 的位址存放於 thread local storage 當中
   MAYBE_INIT_TCACHE ();
 
-  /* ---------------------- 第一、tcache ---------------------- */
+  // ! ---------------------- 第一、tcache ----------------------
   // 如果 tcache 對應的 index 內有 chunk 可以用 (tcache->counts[tc_idx] > 0)，
   // 就會透過 tcache_get() 取得 chunk 並回傳給使用者
   if (tc_idx < mp_.tcache_bins
@@ -41,6 +43,7 @@ __libc_malloc (size_t bytes)
 
   if (SINGLE_THREAD_P) // 如果是 single thread
     {
+      // ! 呼叫 malloc 的核心 function
       // 使用 _int_malloc (internal malloc) 從 main_arena 內儲存的資訊取出
       // chunk 回傳給使用者
       victim = _int_malloc (&main_arena, bytes);
@@ -97,6 +100,7 @@ _int_malloc (mstate av, size_t bytes)
   size_t tcache_unsorted_count;	    /* count of unsorted chunks processed */
 #endif
 
+  // ! 將 malloc size 轉為 chunk size
   // 會將 malloc size 做 alignment 後轉成 chunk size 存於 nb
   if (!checked_request2size (bytes, &nb))
     {
@@ -113,7 +117,7 @@ _int_malloc (mstate av, size_t bytes)
       return p;
     }
 
-  /* ---------------------- 第二、fastbin ---------------------- */
+  // ! ---------------------- 第二、fastbin ----------------------
   // 首先檢查 chunk size <= get_max_fast()，也就是 0x80
   if ((unsigned long) (nb) <= (unsigned long) (get_max_fast ()))
     {
@@ -130,9 +134,9 @@ _int_malloc (mstate av, size_t bytes)
 	  
 	  if (__glibc_likely (victim != NULL))
 	    {
-          // 取得 chunk 結構紀錄的 size 所對應到的 idx
-          // 比較是否與 chunk size 對應到的 idx 相同
-          // 即為：如果回傳的 chunk 的大小不該屬於此 fastbin，則被判斷為 corrupt
+        // 取得 chunk 結構紀錄的 size 所對應到的 idx
+        // 比較是否與 chunk size 對應到的 idx 相同
+        // 即為：如果回傳的 chunk 的大小不該屬於此 fastbin，則被判斷為 corrupt
 	      size_t victim_idx = fastbin_index (chunksize (victim));
 	      if (__builtin_expect (victim_idx != idx, 0))
 		malloc_printerr ("malloc(): memory corruption (fast)");
@@ -167,7 +171,7 @@ _int_malloc (mstate av, size_t bytes)
 	}
     }
 
-  /* ---------------------- 第三、smallbin ---------------------- */
+  // ! ---------------------- 第三、smallbin ----------------------
   // 如果 chunk 落於 smallbin 的大小當中，也就是 0x20 ~ 0x3f0
   if (in_smallbin_range (nb))
     {
@@ -245,7 +249,7 @@ _int_malloc (mstate av, size_t bytes)
   for (;; )
     {
       int iters = 0;
-      /* ---------------------- 第四、unsorted bin ---------------------- */
+      // ! ---------------------- 第四、unsorted bin ----------------------
       // 以 bk 來 traverse 所有 unsorted bin chunk
       // 清空 unsorted bin，把 chunk 放到對應的 bin 當中
       while ((victim = unsorted_chunks (av)->bk) != unsorted_chunks (av))
@@ -383,7 +387,7 @@ _int_malloc (mstate av, size_t bytes)
           return tcache_get (tc_idx);
         }
 
-      /* ---------------------- 第五、large bin ---------------------- */
+      // ! ---------------------- 第五、large bin ----------------------
       // 如果大小不屬於 smallbin 的範圍，屬於 smallbin 的已經在 "第三、smallbin" 處理完了
       if (!in_smallbin_range (nb))
         {
@@ -423,8 +427,8 @@ _int_malloc (mstate av, size_t bytes)
           return p;
         }
 
+    // ! 當所有 bin 都沒有可以使用的 chunk，則從 top chunk 開始切
     use_top:
-      // 當所有 bin 都沒有可以使用的 chunk，則從 top chunk 開始切
       victim = av->top;
       size = chunksize (victim);
 
@@ -446,6 +450,7 @@ _int_malloc (mstate av, size_t bytes)
           alloc_perturb (p, bytes);
           return p;
         }
+      // ! 請求過大
       // 如果 top chunk 小到沒辦法切，會根據 request size，
       // 透過 sysmalloc 擴展更大的空間後回傳給使用者
       else

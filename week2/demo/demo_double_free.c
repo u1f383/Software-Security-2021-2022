@@ -19,11 +19,13 @@ int main()
     free(B);
     free(A);
     // clean tcache
-    A = malloc(0x10);
+    // 不過因為 malloc 會 trigger tcache stashing，
+    // 因此我們用 calloc() 直接從 fastbin 取出 chunk
+    A = calloc(0x10, 1);
     *A = 0xdeadbeef;
-    malloc(0x10);
-    malloc(0x10);
-    malloc(0x10); // 0xdeadbeef
+    calloc(0x10, 1);
+    calloc(0x10, 1);
+    calloc(0x10, 1); // 0xdeadbeef
 
     return 0;
 }

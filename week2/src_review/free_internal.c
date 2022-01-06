@@ -23,7 +23,7 @@ __libc_free (void *mem)
   // mem2chunk(): input 為使用者拿到的 chunk，output 為 chunk 的起頭
   p = mem2chunk (mem);
 
-  // 如果 chunk 是透過 mmap() 產生的，則會使用 unmap 來釋放
+  // ! 如果 chunk 是透過 mmap() 產生的，則會使用 unmap 來釋放
   if (chunk_is_mmapped (p))
     {
       ...
@@ -35,7 +35,7 @@ __libc_free (void *mem)
   // 檢查 chunk 的 NON_MAIN_ARENA bit，如果是 unset，則回傳 main_arena
   // 否則回傳 chunk 所屬的 heap 其對應到的 arena
   ar_ptr = arena_for_chunk (p);
-  // _int_free 用來處理釋放記憶體的操作
+  // ! _int_free 用來處理釋放記憶體的操作
   _int_free (ar_ptr, p, 0);
 }
 
@@ -63,7 +63,7 @@ _int_free (mstate av, mchunkptr p, int have_lock)
   if (__glibc_unlikely (size < MINSIZE || !aligned_OK (size)))
     malloc_printerr ("free(): invalid size");
 
-  /* ---------------------- 第一、tcache ---------------------- */
+  // ! ---------------------- 第一、tcache ----------------------
   {
     size_t tc_idx = csize2tidx (size); // 取得 chunk size 對應到的 tcache idx
     if (tcache != NULL && tc_idx < mp_.tcache_bins)
@@ -89,10 +89,10 @@ _int_free (mstate av, mchunkptr p, int have_lock)
 		{
 			tcache_put (p, tc_idx);
 			return;
-	  	}
+	  }
       }
   }
-  /* ---------------------- 第二、fastbin ---------------------- */
+  // ! ---------------------- 第二、fastbin ----------------------
 	// 若 chunk size 在 fastbin 的範圍中
   if ((unsigned long)(size) <= (unsigned long)(get_max_fast ())) {
 	// 檢查下個 chunk 的大小是否在合法範圍內
@@ -132,8 +132,7 @@ _int_free (mstate av, mchunkptr p, int have_lock)
 
   // 如果 chunk 並非使用 mmap() 所建立
   else if (!chunk_is_mmapped(p)) {
-	/* ---------------------- 第三、unsorted bin ---------------------- */
-
+	// ! ---------------------- 第三、unsorted bin ----------------------
     /* If we're single-threaded, don't lock the arena.  */
     if (SINGLE_THREAD_P)
       have_lock = true;
@@ -224,7 +223,7 @@ _int_free (mstate av, mchunkptr p, int have_lock)
       if (av == &main_arena) { ... /* single thread case */ }
 	  else { ... /* multithread case */ }
   }
-// 如果 chunk 用 mmap() 建立，則用 munmap 來釋放
+  // ! 如果 chunk 用 mmap() 建立，則用 munmap 來釋放
   else {
     munmap_chunk (p);
   }
@@ -245,7 +244,7 @@ tcache_put (mchunkptr chunk, size_t tc_idx)
   ++(tcache->counts[tc_idx]);
 }
 
-// ANCHOR 4. malloc_consolidate(): glibc 用於減少 fragmentation 的合併機制
+// ANCHOR 4. malloc_consolidate(): glibc 用於減少 fragmentation 的合併機制，與 free() 內部的實作類似，但是主要用來處理 fastbin
 static void malloc_consolidate(mstate av)
 {
   mfastbinptr*    fb;                 /* current fastbin being consolidated */
@@ -283,7 +282,7 @@ static void malloc_consolidate(mstate av)
 
 	nextp = p->fd; // 取得下一塊 chunk
 
-    /* ------- 先往上個 merge ------- */
+  // ! ------- 先往上個 merge -------
 	size = chunksize (p); // chunk szie
 	nextchunk = chunk_at_offset(p, size); // 下一個 chunk 的位址
 	nextsize = chunksize(nextchunk); // 下一個 chunk 的 chunk size
@@ -299,7 +298,7 @@ static void malloc_consolidate(mstate av)
 	  unlink_chunk (av, p);
 	}
 
-    /* ------- 再往下個 merge ------- */
+  // ! ------- 再往下個 merge -------
 	if (nextchunk != av->top /* 下個不是 top chunk，也就是並非最後一塊 chunk */) {
 	  nextinuse = inuse_bit_at_offset(nextchunk, nextsize);
 

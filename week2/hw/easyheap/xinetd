@@ -6,7 +6,7 @@ service easyheap
     protocol = tcp
     server = /home/easyheap/run.sh
     user = easyheap
-    port = 30208
+    port = 30211
     flags = REUSE
     bind = 0.0.0.0
     wait = no
