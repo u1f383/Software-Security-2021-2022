@@ -51,32 +51,32 @@ int mock()
     set_mf_prot(root, rootfs_mf, "read,write");
 
     // Test 1. create directory and normal file
-    if (create_mf(root, "dir", "test_dir") == -1)
+    if (create_mf(root, "dir", "test_dir_L1") == -1)
         return -1;
-    if (create_mf(root, "normfile", "test_file") == -1)
+    if (create_mf(root, "normfile", "test_file_L1") == -1)
         return -1;
     
     // Test 2. update file and directory permission
-    tmp_mf = get_mf_by_fname(root, "test_file");
+    tmp_mf = get_mf_by_fname(root, "test_file_L1");
     if (set_mf_prot(root, tmp_mf, "read") == -1)
         return -1;
-    tmp_dir = get_mf_by_fname(root, "test_dir");
+    tmp_dir = get_mf_by_fname(root, "test_dir_L1");
     if (set_mf_prot(root, tmp_dir, "read,write") == -1)
         return -1;
 
     // Test 3. change directory and create some files
     if (enter_dir(root, tmp_dir) == -1)
         return -1;
-    if (create_mf(root, "dir", "test_dir") == -1)
+    if (create_mf(root, "dir", "test_dir_L2") == -1)
         return -1;
-    if (create_mf(root, "normfile", "test_file") == -1)
+    if (create_mf(root, "normfile", "test_file_L2") == -1)
         return -1;
-    if (create_mf(root, "normfile", "test_file2") == -1)
+    if (create_mf(root, "normfile", "test_file2_L2") == -1)
         return -1;
     
     // Test 4. read and write file
     char buf[0x10] = {0};
-    tmp_mf = get_mf_by_fname(root, "test_file2");
+    tmp_mf = get_mf_by_fname(root, "test_file2_L2");
     write(STDOUT_FILENO, "for test", 9);
     if (read_mf(root, tmp_mf) == -1)
         return -1;
@@ -100,14 +100,39 @@ int mock()
     // Test 6. test softlink
     softlink_setsrc(root, tmp_mf);
 
-    tmp_dir = get_mf_by_fname(root, "test_dir");
+    tmp_dir = get_mf_by_fname(root, "test_dir_L2");
     if (enter_dir(root, tmp_dir) == -1)
         return -1;
-    if (softlink_setdst(root, "will_fail") != -1)
+    if (softlink_setdst(root, "sl_will_fail") != -1)
         return -1;
 
     goto_rootfs(root);
-    if (softlink_setdst(root, "will_ok") == -1)
+    if (softlink_setdst(root, "sl_will_ok") == -1)
+        return -1;
+    tmp_mf = get_mf_by_fname(root, "sl_will_ok");
+    if (delete_mf(gc, root, tmp_mf) == -1)
+        return -1;
+    
+    // Test 7. test hardlink
+    tmp_dir = get_mf_by_fname(root, "test_dir_L1");
+    if (enter_dir(root, tmp_dir) == -1)
+        return -1;
+
+    tmp_mf = get_mf_by_fname(root, "test_file2_L2");
+    hardlink_setsrc(root, tmp_mf);
+
+    tmp_dir = get_mf_by_fname(root, "test_dir_L2");
+
+    if (enter_dir(root, tmp_dir) == -1)
+        return -1;
+    if (hardlink_setdst(root, "hl_will_fail") != -1)
+        return -1;
+
+    goto_rootfs(root);
+    if (hardlink_setdst(root, "hl_will_ok") == -1)
+        return -1;
+    tmp_mf = get_mf_by_fname(root, "hl_will_ok");
+    if (delete_mf(gc, root, tmp_mf) == -1)
         return -1;
 
     // restore environment
@@ -134,6 +159,7 @@ int main()
 {
     init_proc();
     banner();
+
     if (mock())
         pexit("[-] server error");
 

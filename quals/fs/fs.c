@@ -389,7 +389,7 @@ int mf_gc_list_add(GC *gc, list_head *hd)
         return 0;
 
     // if there are 16 deleted files, sweep them
-    MyFile *curr_mf = NULL, *next = NULL;
+    MyFile *curr_mf = NULL;
     list_head *curr = gc->next_g.next;
 
     while (curr) {
@@ -408,15 +408,13 @@ int _release_mf(MyFile *mf)
      * we just do nothing, waiting for softlink checking to release it
      */
     MyFile *root = container_of(rootfs.next, MyFile, next_file);
-    if (is_ref_by_other(root, mf))
+    if (mf->refcnt)
         return 0;
-
-    free(mf->fn);
 
     if (mf_is_hlink(mf))
         if (mf->data.ino->refcnt-- != 0)
-            return 0;
-            
+            goto ret;
+    
     if (mf_is_normfile(mf)) {
         free(mf->data.ino->content);
         free(mf->data.ino);
@@ -425,11 +423,12 @@ int _release_mf(MyFile *mf)
     } else if (mf_is_slink(mf)) {
         // try to release softlink target
         _release_mf(mf->data.link);
-        mf->data.link = NULL;
     } else {
         return -1;
     }
 
+ret:
+    free(mf->fn);
     free(mf);
     return 0;
 }
