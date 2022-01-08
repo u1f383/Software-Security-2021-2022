@@ -20,11 +20,13 @@ repo 目錄的結構如下：
 │       ├── ...
 │       └── exp
 ├── week2
+├── quals # AIS3 EOF qualify 題目
 ...
 ```
 
 ## Week 1: Binary Exploitation I
-- 影片: 
+> linux 相關的基礎知識如 ELF struct 與 calling convention、介紹不同的保護機制與攻擊方法
+- 影片: [video](https://youtu.be/ktoVQB99Gj4)
 - Lab
   - Got2win
   - Rop2win
@@ -33,11 +35,13 @@ repo 目錄的結構如下：
   - fullchain-nerf
   - sandbox
 
-## Week 1: Binary Exploitation II
-- 影片: 
+## Week 2: Binary Exploitation II
+> 介紹 linux heap 中經常看到的結構與記憶體分配機制、講解簡單的 heap exploit 技巧如 tcache poisoning
+- 影片: [video](https://youtu.be/A3kwWfex2XM)
 - Lab
   - market
   - heapmath
 - Hw
   - easyheap
   - beeftalk
+  - final

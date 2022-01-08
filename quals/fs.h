@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "user.h"
+#include "gc.h"
 #include <stdint.h>
 
 #define MF_SIZE_INIT 0x100
@@ -14,10 +15,7 @@
 #define MF_META_TYPE_IS_SLINK 0b00010000
 #define MF_META_TYPE_IS_HLINK 0b00100000
 
-
 static int8_t mf_cnt = 0;
-MyFile *curr_dir = NULL;
-MyFile *softlink = NULL, *hardlink = NULL;
 
 typedef struct iNode
 {
@@ -88,80 +86,89 @@ MyFile *_new_dir(uint8_t uid, char *fn);
 MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn);
 MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn);
 
+MyFile *get_mf_by_fname(MyUser *mu, char *fn);
 MyFile *_get_mf_by_fname(MyFile *hd, char *fn);
 
 int _release_mf();
+
 int is_desc(MyFile *curr, MyFile *target);
+int is_existed(MyFile **mf, MyFile *curr_dir, char *fn);
+int is_ref_by_other(MyFile *_root, MyFile *target);
+
 int mf_gc_list_add(GC *gc, list_head *hd);
-int get_mf_refcnt(MyFile *mf);
 
 /**
  * create_mf(): create file 
  * > create dir <file_name>
  * > create normfile <file_name>
  */
-int create_mf();
+int create_mf(MyUser *mu, char *type, char *fn);
 
 /**
  * delete_mf(): delete file
  * > delete <file_name>
  */
-int delete_mf();
+int delete_mf(GC *gc, MyUser *mu, MyFile *mf);
+
+/**
+ * enter_dir(): enter a directory
+ * > enter <file_name>
+ */
+int enter_dir(MyUser *mu, MyFile *mf);
 
 /**
  * read_mf(): read data from stdin and write to file
  * > read <file_name>
  */
-int read_mf(MyUser *ms, MyFile *mf);
+int read_mf(MyUser *mu, MyFile *mf);
 
 /**
  * write_mf(): write file content to stdout
  * > write <file_name>
  */
-ssize_t write_mf(MyUser *ms, MyFile *mf);
+ssize_t write_mf(MyUser *mu, MyFile *mf);
 
 /**
  * enc_mf(): encrypt file
- * > enc <key> <file_name>
+ * > enc <file_name> <key>
  */
-int enc(MyFile *mf, char *key);
+int enc_mf(MyUser *mu, MyFile *mf, char *key);
 
 /**
  * dec_mf(): decrypt file
- * > dec <key> <file_name>
+ * > dec <file_name> <key>
  */
-int dec(MyFile *mf, char *key);
+int dec_mf(MyUser *mu, MyFile *mf, char *key);
 
 /**
  * set_mf_prot(): set the prot of file
- * > set <prot> <file_name>
+ * > set <file_name> <prot>
  */
-void set_mf_prot(MyFile *mf, char *prot);
+int set_mf_prot(MyUser *ms, MyFile *mf, char *prot);
 
 /**
  * unset_mf_prot(): unset the prot of file
- * > unset <prot> <file_name>
+ * > unset <file_name> <prot>
  */
-void unset_mf_prot(MyFile *mf, char *prot);
+int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot);
 
 /**
  * show_fileinfo(): show the information of file
  * > show_fileinfo <file_name>
  */
-int show_fileinfo(char *fn);
-void _show_fileinfo(MyFile *mf);
+void show_fileinfo(MyUser *mu, MyFile *mf);
 
 /**
  * list_file(): list files in the current directory
  * > list
  */
-void list_dir();
+void list_dir(MyUser *mu);
 
 /**
  * softlink_setsrc(): set the source file of softlink
  * > softlink_setsrc <file_name>
  */
-int softlink_setsrc(char *fn);
+void softlink_setsrc(MyUser *mu, MyFile *mf);
 
 /**
  * softlink_setdst(): set the destination file of softlink
@@ -173,7 +180,7 @@ int softlink_setdst(MyUser *mu, char *fn);
  * hardlink_setsrc(): set the source file of hardlink
  * > hardlink_setsrc <file_name>
  */
-int hardlink_setsrc(char *fn);
+void hardlink_setsrc(MyUser *mu, MyFile *mf);
 
 /**
  * hardlink_setdst(): set the destination file of hardlink
