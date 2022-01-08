@@ -1,13 +1,13 @@
 #include "fs.h"
 #include "list.h"
 #include "gc.h"
-#include "crypto.h"
+#include "mycrypto.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 
-list_head fs_root = { .next = NULL };
+list_head rootfs = { .next = NULL };
 
 MyFile *__new_mf()
 {
@@ -23,7 +23,7 @@ MyFile *__new_mf()
     return mf;
 }
 
-MyFile *_new_normfile(uint8_t uid, char *fn)
+MyFile *_new_normfile(int8_t uid, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
@@ -33,14 +33,14 @@ MyFile *_new_normfile(uint8_t uid, char *fn)
     return mf;
 }
 
-MyFile *_new_dir(uint8_t uid, char *fn)
+MyFile *_new_dir(int8_t uid, char *fn)
 {
     MyFile *mf = _new_normfile(uid, fn);
     mf->metadata |= MF_META_TYPE_IS_DIR;
     return mf;
 }
 
-MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn)
+MyFile *_new_slink(int8_t uid, MyFile *link, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
@@ -52,7 +52,7 @@ MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn)
     return mf;
 }
 
-MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn)
+MyFile *_new_hlink(int8_t uid, MyFile *link, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
@@ -67,11 +67,14 @@ MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn)
 
 MyFile* _get_mf_by_fname(MyFile *dir, char *fn)
 {
-    MyFile *curr = container_of(dir->dir_hd.next, MyFile, next_file);
+    MyFile *curr_mf = NULL;
+    list_head *curr = dir->dir_hd.next;
+    
     while (curr) {
-        if (!strcmp(curr->fn, fn))
-            return curr;
-        curr = container_of(curr->next_file.next, MyFile, next_file);
+        curr_mf = container_of(curr, MyFile, next_file);
+        if (!strcmp(curr_mf->fn, fn))
+            return curr_mf;
+        curr = curr->next;
     }
     return NULL;
 }
@@ -84,7 +87,9 @@ MyFile* get_mf_by_fname(MyUser *mu, char *fn)
 int create_mf(MyUser *mu, char *type, char *fn)
 {
     MyFile *mf = NULL;
-    if (is_existed(&mf, mu->curr_dir, fn))
+
+    if (mu->curr_dir->uid != mu->uid &&
+        !mf_is_writable(mu->curr_dir))
         return -1;
 
     if (!strcmp(type, "dir"))
@@ -112,7 +117,7 @@ void show_fileinfo(MyUser *mu, MyFile *mf)
     else
         prot = "--";
 
-    printf("%s\t%d  %d  %u  %s\n", mf->fn, mf->fid, mf->uid, mf->size, prot);
+    printf("%s\t%d\t%d\t%u\t%s\n", mf->fn, mf->fid, mf->uid, mf->size, prot);
 }
 
 int delete_mf(GC *gc, MyUser *mu, MyFile *mf)
@@ -144,19 +149,25 @@ int enter_dir(MyUser *mu, MyFile *mf)
     if (mu->dir_deep == DIR_MAX_DEEP)
         return -1;
 
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
 
     if (!mf_is_dir(mf))
         return -1;
 
+    if (mf->uid != mu->uid && !mf_is_readable(mf))
+        return -1;
+
     if (mf == mu->dir_stack[mu->dir_deep - 2]) {
-        // enter ..
+        // cd ..
         mu->dir_stack[mu->dir_deep - 1] = NULL;
         mu->dir_deep--;
     } else {
         mu->dir_deep++;
-        mu->dir_stack[mu->dir_deep - 1] = mu->curr_dir;
+        mu->dir_stack[mu->dir_deep - 1] = mf;
     }
     mu->curr_dir = mf;
     return 0;
@@ -164,13 +175,16 @@ int enter_dir(MyUser *mu, MyFile *mf)
 
 int enc_mf(MyUser *mu, MyFile *mf, char *key)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
 
     if (!mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != mu->uid && mf_is_readable(mf) && mf_is_writable(mf))
+    if (mf->uid != mu->uid && !mf_is_readable(mf) && !mf_is_writable(mf))
         return -1;
 
     if (my_encrypt(mf->data.ino->content, key, mf->size) == -1)
@@ -182,13 +196,16 @@ int enc_mf(MyUser *mu, MyFile *mf, char *key)
 
 int dec_mf(MyUser *mu, MyFile *mf, char *key)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
 
     if (!mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != mu->uid && mf_is_readable(mf) && mf_is_writable(mf))
+    if (mf->uid != mu->uid && !mf_is_readable(mf) && !mf_is_writable(mf))
         return -1;
 
     if (my_decrypt(mf->data.ino->content, key, mf->size) == -1)
@@ -200,13 +217,16 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
 
 int read_mf(MyUser *mu, MyFile *mf)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
 
     if (mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != mu->uid && mf_is_readable(mf))
+    if (mf->uid != mu->uid && !mf_is_readable(mf))
         return -1;
     
     char buf[MF_SIZE_MAX];
@@ -222,13 +242,16 @@ int read_mf(MyUser *mu, MyFile *mf)
 
 ssize_t write_mf(MyUser *ms, MyFile *mf)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
         
     if (mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != ms->uid && mf_is_writable(mf))
+    if (mf->uid != ms->uid && !mf_is_writable(mf))
         return -1;
     
     ssize_t wn;
@@ -238,13 +261,16 @@ ssize_t write_mf(MyUser *ms, MyFile *mf)
 
 int set_mf_prot(MyUser *ms, MyFile *mf, char *prot)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
         
     if (mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != ms->uid && mf_is_writable(mf))
+    if (mf->uid != ms->uid && !mf_is_writable(mf))
         return -1;
 
     if (!strcmp(prot, "read"))
@@ -259,13 +285,16 @@ int set_mf_prot(MyUser *ms, MyFile *mf, char *prot)
 
 int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot)
 {
-    while (mf_is_slink(mf))
+    while (mf && mf_is_slink(mf))
         mf = mf->data.link;
+
+    if (!mf)
+        return -1;
         
     if (mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
-    if (mf->uid != ms->uid && mf_is_writable(mf))
+    if (mf->uid != ms->uid && !mf_is_writable(mf))
         return -1;
 
     if (!strcmp(prot, "read"))
@@ -280,10 +309,14 @@ int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot)
 
 void list_dir(MyUser *mu)
 {
-    MyFile *curr = container_of(mu->curr_dir->dir_hd.next, MyFile, next_file);
+    MyFile *curr_mf = NULL;
+    list_head *curr = mu->curr_dir->dir_hd.next;
+
+    printf("[fname]\t[fid]\t[uid]\t[size]\t[perm]\n");
     while (curr) {
-        show_fileinfo(curr);
-        curr = container_of(curr->next_file.next, MyFile, next_file);
+        curr_mf = container_of(curr, MyFile, next_file);
+        show_fileinfo(mu, curr_mf);
+        curr = curr->next;
     }
 }
 
@@ -333,21 +366,20 @@ int hardlink_setdst(MyUser *mu, char *fn)
 
 int mf_gc_list_add(GC *gc, list_head *hd)
 {
-    MyFile *mf = container_of(hd, MyFile, next_file);
     list_add(&gc->next_g, hd);
 
     if (gc->delcnt++ % 0x10)
         return 0;
 
     // if there are 16 deleted files, sweep them
-    MyFile *curr, *next;
-    curr = container_of(gc->next_g.next, MyFile, next_file);
+    MyFile *curr_mf = NULL, *next = NULL;
+    list_head *curr = gc->next_g.next;
 
     while (curr) {
-        next = container_of(curr->next_file.next, MyFile, next_file);
-        if (_release_mf(curr) == -1)
+        curr_mf = container_of(curr, MyFile, next_file);
+        if (_release_mf(curr_mf) == -1)
             return -1;
-        curr = next;
+        curr = curr->next;
     }
     return 0;
 }
@@ -358,7 +390,7 @@ int _release_mf(MyFile *mf)
      * if there is a softlink linked to file being deleted at least,
      * we just do nothing, waiting for softlink checking to release it
      */
-    MyFile *root = container_of(fs_root.next, MyFile, next_file);
+    MyFile *root = container_of(rootfs.next, MyFile, next_file);
     if (is_ref_by_other(root, mf))
         return 0;
 
@@ -385,36 +417,40 @@ int _release_mf(MyFile *mf)
     return 0;
 }
 
-int is_desc(MyFile *curr, MyFile *target)
+int is_desc(MyFile *curr_mf, MyFile *target)
 {
+    list_head *curr = curr_mf->dir_hd.next;
     while (curr) {
-        if (target == curr)
+        curr_mf = container_of(curr, MyFile, next_file);
+        
+        if (target == curr_mf)
             return 1;
         
-        if (mf_is_dir(curr)) {
-            MyFile *next_dir = container_of(curr->dir_hd.next,
-                                        MyFile, next_file);
+        if (mf_is_dir(curr_mf)) {
+            MyFile *next_dir = container_of(curr_mf->dir_hd.next,
+                                            MyFile, next_file);
             if (is_desc(next_dir, target))
                 return 1;
         }
-        curr = container_of(curr->next_file.next, MyFile, next_file);
+        curr = curr->next;
     }
 
     return 0;
 }
 
-int is_ref_by_other(MyFile *root, MyFile *target)
+int is_ref_by_other(MyFile *dir, MyFile *target)
 {
-    while (root) {
-        if (mf_is_slink(root) && target == root->data.link) {
+    MyFile *curr_mf = NULL;
+    list_head *curr = dir->dir_hd.next;
+
+    while (curr) {
+        curr_mf = container_of(curr, MyFile, next_file);
+        if (mf_is_slink(curr_mf) && target == curr_mf->data.link) {
             return 1;
-        } else if (mf_is_dir(root)) {
-            MyFile *next_dir = container_of(root->dir_hd.next,
-                                        MyFile, next_file);
-            if (is_ref_by_other(next_dir, target))
-                return 1;
+        } else if (mf_is_dir(curr_mf) && is_ref_by_other(curr_mf, target)) {
+            return 1;
         }
-        root = container_of(root->next_file.next, MyFile, next_file);
+        curr = curr->next;
     }
 
     return 0;

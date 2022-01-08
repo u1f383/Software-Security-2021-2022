@@ -1,7 +1,4 @@
-#ifndef _CRYPTO_H_
-#define _CRYPTO_H_
-    
-// #include <openssl/aes.h>
+#include <openssl/aes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -18,8 +15,9 @@ int my_encrypt(unsigned char *plaintext, unsigned char *key, uint16_t len)
     memcpy(iv_enc, iv, AES_BLOCK_SIZE);
 
     AES_set_encrypt_key(key, AES_KEY_LENGTH * 8, &(encryption_key));
-    AES_cbc_encrypt(plaintext, encryption_output, uint16_t len, &encryption_key, iv_enc, AES_ENCRYPT);
+    AES_cbc_encrypt(plaintext, output, len, &encryption_key, iv_enc, AES_ENCRYPT);
 }
+
 int my_decrypt(unsigned char *cipher, unsigned char *key, uint16_t len)
 {
     AES_KEY decryption_key;
@@ -30,5 +28,3 @@ int my_decrypt(unsigned char *cipher, unsigned char *key, uint16_t len)
     AES_set_decrypt_key(key, AES_KEY_LENGTH * 8, &(decryption_key));
     AES_cbc_encrypt(cipher, output, len, &decryption_key, iv_dec, AES_DECRYPT);
 }
-
-#endif

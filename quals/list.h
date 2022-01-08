@@ -12,19 +12,17 @@ typedef struct list_head {
     struct list_head *next;
 } list_head;
 
-void list_add(list_head *hd, list_head *node)
+static inline void list_add(list_head *hd, list_head *node)
 {
-    if (hd->next)
-        node->next = hd->next;
+    node->next = hd->next;
     hd->next = node;
 }
 
-void list_delete(list_head *hd, list_head *node)
+static inline void list_delete(list_head *hd, list_head *node)
 {
-    list_head **indirect = &hd;
-    while (*indirect != node)
-        indirect = &(*indirect)->next;
-    *indirect = node->next;
+    while (hd->next && hd->next != node)
+        hd = hd->next;
+    hd->next = node->next;
 }
 
 #endif

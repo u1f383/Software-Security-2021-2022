@@ -2,9 +2,9 @@
 #define _FS_H_
 
 #include "list.h"
-#include "user.h"
 #include "gc.h"
 #include <stdint.h>
+#include <sys/types.h>
 
 #define MF_SIZE_INIT 0x100
 #define MF_SIZE_MAX  0x1000
@@ -81,22 +81,23 @@ static inline int mf_is_normfile(MyFile *mf)
 
 MyFile *__new_mf();
 
-MyFile *_new_normfile(uint8_t uid, char *fn);
-MyFile *_new_dir(uint8_t uid, char *fn);
-MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn);
-MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn);
-
-MyFile *get_mf_by_fname(MyUser *mu, char *fn);
+MyFile *_new_normfile(int8_t uid, char *fn);
+MyFile *_new_dir(int8_t uid, char *fn);
+MyFile *_new_slink(int8_t uid, MyFile *link, char *fn);
+MyFile *_new_hlink(int8_t uid, MyFile *link, char *fn);
 MyFile *_get_mf_by_fname(MyFile *hd, char *fn);
 
 int _release_mf();
 
-int is_desc(MyFile *curr, MyFile *target);
+int is_desc(MyFile *curr_mf, MyFile *target);
 int is_existed(MyFile **mf, MyFile *curr_dir, char *fn);
 int is_ref_by_other(MyFile *_root, MyFile *target);
 
 int mf_gc_list_add(GC *gc, list_head *hd);
 
+
+#include "user.h"
+MyFile *get_mf_by_fname(MyUser *mu, char *fn);
 /**
  * create_mf(): create file 
  * > create dir <file_name>
@@ -106,13 +107,13 @@ int create_mf(MyUser *mu, char *type, char *fn);
 
 /**
  * delete_mf(): delete file
- * > delete <file_name>
+ * > rm <file_name>
  */
 int delete_mf(GC *gc, MyUser *mu, MyFile *mf);
 
 /**
  * enter_dir(): enter a directory
- * > enter <file_name>
+ * > cd <file_name>
  */
 int enter_dir(MyUser *mu, MyFile *mf);
 
@@ -154,37 +155,37 @@ int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot);
 
 /**
  * show_fileinfo(): show the information of file
- * > show_fileinfo <file_name>
+ * > info <file_name>
  */
 void show_fileinfo(MyUser *mu, MyFile *mf);
 
 /**
  * list_file(): list files in the current directory
- * > list
+ * > ls
  */
 void list_dir(MyUser *mu);
 
 /**
  * softlink_setsrc(): set the source file of softlink
- * > softlink_setsrc <file_name>
+ * > slss <file_name>
  */
 void softlink_setsrc(MyUser *mu, MyFile *mf);
 
 /**
  * softlink_setdst(): set the destination file of softlink
- * > softlink_setdst <file_name>
+ * > slsd <file_name>
  */
 int softlink_setdst(MyUser *mu, char *fn);
 
 /**
  * hardlink_setsrc(): set the source file of hardlink
- * > hardlink_setsrc <file_name>
+ * > hlss <file_name>
  */
 void hardlink_setsrc(MyUser *mu, MyFile *mf);
 
 /**
  * hardlink_setdst(): set the destination file of hardlink
- * > hardlink_setdst <file_name>
+ * > hlsd <file_name>
  */
 int hardlink_setdst(MyUser *mu, char *fn);
 
