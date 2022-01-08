@@ -104,7 +104,7 @@ int create_mf(MyUser *mu, char *type, char *fn)
     return 0;
 }
 
-void show_fileinfo(MyUser *mu, MyFile *mf)
+void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
 {
     const char *prot = NULL;
 
@@ -117,7 +117,17 @@ void show_fileinfo(MyUser *mu, MyFile *mf)
     else
         prot = "--";
 
-    printf("%s\t%d\t%d\t%u\t%s\n", mf->fn, mf->fid, mf->uid, mf->size, prot);
+    if (all_name) {
+        printf("%s    %d\t%d\t%u\t%s\n", mf->fn, mf->fid, mf->uid, mf->size, prot);
+    } else {
+        char buf[0x20] = {0};
+        memset(buf, '.', 0x1f);
+        if (strlen(mf->fn) >= 0x1f)
+            memcpy(buf, mf->fn, 0x1c);
+        else
+            strcpy(buf, mf->fn);
+        printf("%-32st%d\t%d\t%u\t%s\n", buf, mf->fid, mf->uid, mf->size, prot);
+    }
 }
 
 int delete_mf(GC *gc, MyUser *mu, MyFile *mf)
@@ -173,21 +183,28 @@ int enter_dir(MyUser *mu, MyFile *mf)
     return 0;
 }
 
+int goto_rootfs(MyUser *mu)
+{
+    for (; mu->dir_deep != 1; mu->dir_deep--)
+        mu->dir_stack[mu->dir_deep - 1] = NULL;
+
+    mu->curr_dir = mu->dir_stack[0];
+    return 0;
+}
+
 int enc_mf(MyUser *mu, MyFile *mf, char *key)
 {
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
+    if (!mf || !mf_is_normfile(mf) ||
+        mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
-    if (!mf_is_normfile(mf))
+    if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
         return -1;
 
-    if (mf->uid != mu->uid && !mf_is_readable(mf) && !mf_is_writable(mf))
-        return -1;
-
-    if (my_encrypt(mf->data.ino->content, key, mf->size) == -1)
+    if (my_encrypt(mf->data.ino->content, key, &mf->size) == -1)
         return -1;
     mf->metadata |= MF_META_ENCED;
 
@@ -199,16 +216,13 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
+    if (!mf || !mf_is_normfile(mf) || !mf_is_enc(mf))
         return -1;
 
-    if (!mf_is_normfile(mf))
+    if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
         return -1;
 
-    if (mf->uid != mu->uid && !mf_is_readable(mf) && !mf_is_writable(mf))
-        return -1;
-
-    if (my_decrypt(mf->data.ino->content, key, mf->size) == -1)
+    if (my_decrypt(mf->data.ino->content, key, &mf->size) == -1)
         return -1;
     mf->metadata &= ~MF_META_ENCED;
 
@@ -234,7 +248,7 @@ int read_mf(MyUser *mu, MyFile *mf)
     nr = read(STDIN_FILENO, buf, MF_SIZE_MAX);
     if (nr != -1) {
         mf->size = nr;
-        mf->data.ino->content = realloc(mf->data.ino->content, mf->size);
+        mf->data.ino->content = realloc(mf->data.ino->content, mf->size + 0x10);
         memcpy(mf->data.ino->content, buf, mf->size);
     }
     return nr;
@@ -255,7 +269,10 @@ ssize_t write_mf(MyUser *ms, MyFile *mf)
         return -1;
     
     ssize_t wn;
-    wn = write(STDOUT_FILENO, mf->data.ino->content, mf->size);
+    if (mf_is_enc(mf))
+        hexdump(mf->data.ino->content, mf->size);
+    else
+        wn = write(STDOUT_FILENO, mf->data.ino->content, mf->size);
     return wn;
 }
 
@@ -267,7 +284,7 @@ int set_mf_prot(MyUser *ms, MyFile *mf, char *prot)
     if (!mf)
         return -1;
         
-    if (mf_is_deleted(mf) || !mf_is_normfile(mf))
+    if (mf_is_deleted(mf))
         return -1;
 
     if (mf->uid != ms->uid && !mf_is_writable(mf))
@@ -312,10 +329,10 @@ void list_dir(MyUser *mu)
     MyFile *curr_mf = NULL;
     list_head *curr = mu->curr_dir->dir_hd.next;
 
-    printf("[fname]\t[fid]\t[uid]\t[size]\t[perm]\n");
+    printf("%-32s[fid]\t[uid]\t[size]\t[perm]\n", "[fname]");
     while (curr) {
         curr_mf = container_of(curr, MyFile, next_file);
-        show_fileinfo(mu, curr_mf);
+        show_fileinfo(mu, curr_mf, 0);
         curr = curr->next;
     }
 }
@@ -331,7 +348,7 @@ int softlink_setdst(MyUser *mu, char *fn)
         return -1;
 
     // we hope a file not to link file of higher layer
-    if (is_desc(mu->curr_dir, mu->softlink))
+    if (!is_desc(mu->curr_dir, mu->softlink))
         return -1;
     
     MyFile *mf = _new_slink(mu->uid, mu->softlink, fn);
@@ -351,7 +368,7 @@ int hardlink_setdst(MyUser *mu, char *fn)
         return -1;
 
     // we hope a file not to link file of higher layer
-    if (is_desc(mu->curr_dir, mu->hardlink))
+    if (!is_desc(mu->curr_dir, mu->hardlink))
         return -1;
 
     // sorry we don't support other types currently
@@ -407,8 +424,8 @@ int _release_mf(MyFile *mf)
         free(mf->data.ino);
     } else if (mf_is_slink(mf)) {
         // try to release softlink target
-        mf->data.link = NULL;
         _release_mf(mf->data.link);
+        mf->data.link = NULL;
     } else {
         return -1;
     }
@@ -426,12 +443,9 @@ int is_desc(MyFile *curr_mf, MyFile *target)
         if (target == curr_mf)
             return 1;
         
-        if (mf_is_dir(curr_mf)) {
-            MyFile *next_dir = container_of(curr_mf->dir_hd.next,
-                                            MyFile, next_file);
-            if (is_desc(next_dir, target))
-                return 1;
-        }
+        if (mf_is_dir(curr_mf) && is_desc(curr_mf, target))
+            return 1;
+
         curr = curr->next;
     }
 

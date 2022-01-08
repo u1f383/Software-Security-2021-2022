@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 GC *gc;
 extern list_head rootfs;
@@ -32,12 +33,90 @@ void pexit(const char *msg)
 
 int mock()
 {
+    MyFile *tmp_mf = NULL, *tmp_dir = NULL;
     MyFile *rootfs_mf = container_of(rootfs.next, MyFile, next_file);
     MyUser *root = new_mu("root", rootfs_mf);
+    int pipefd[2];
+    int old_stdin, old_stdout;
 
+    old_stdin = dup(STDIN_FILENO);
+    old_stdout = dup(STDOUT_FILENO);
+    pipe(pipefd);
+    dup2(pipefd[0], STDIN_FILENO);
+    dup2(pipefd[1], STDOUT_FILENO);
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    // set rootfs as readable and writable
     set_mf_prot(root, rootfs_mf, "read,write");
-    if (create_mf(root, "dir", "test1") != 0)
+
+    // Test 1. create directory and normal file
+    if (create_mf(root, "dir", "test_dir") == -1)
         return -1;
+    if (create_mf(root, "normfile", "test_file") == -1)
+        return -1;
+    
+    // Test 2. update file and directory permission
+    tmp_mf = get_mf_by_fname(root, "test_file");
+    if (set_mf_prot(root, tmp_mf, "read") == -1)
+        return -1;
+    tmp_dir = get_mf_by_fname(root, "test_dir");
+    if (set_mf_prot(root, tmp_dir, "read,write") == -1)
+        return -1;
+
+    // Test 3. change directory and create some files
+    if (enter_dir(root, tmp_dir) == -1)
+        return -1;
+    if (create_mf(root, "dir", "test_dir") == -1)
+        return -1;
+    if (create_mf(root, "normfile", "test_file") == -1)
+        return -1;
+    if (create_mf(root, "normfile", "test_file2") == -1)
+        return -1;
+    
+    // Test 4. read and write file
+    char buf[0x10] = {0};
+    tmp_mf = get_mf_by_fname(root, "test_file2");
+    write(STDOUT_FILENO, "for test", 9);
+    if (read_mf(root, tmp_mf) == -1)
+        return -1;
+    if (write_mf(root, tmp_mf) == -1)
+        return -1;
+    read(STDIN_FILENO, buf, 0x10);
+    if (strcmp(buf, "for test"))
+        return -1;
+    
+    // Test 5. encrypt and decrypt file
+    if (enc_mf(root, tmp_mf, "AAAAAAAABBBBBBBB") == -1)
+        return -1;
+    if (dec_mf(root, tmp_mf, "AAAAAAAABBBBBBBB") == -1)
+        return -1;
+    if (write_mf(root, tmp_mf) == -1)
+        return -1;
+    read(STDIN_FILENO, buf, 0x10);
+    if (strcmp(buf, "for test"))
+        return -1;
+
+    // Test 6. test softlink
+    softlink_setsrc(root, tmp_mf);
+
+    tmp_dir = get_mf_by_fname(root, "test_dir");
+    if (enter_dir(root, tmp_dir) == -1)
+        return -1;
+    if (softlink_setdst(root, "will_fail") != -1)
+        return -1;
+
+    goto_rootfs(root);
+    if (softlink_setdst(root, "will_ok") == -1)
+        return -1;
+
+    // restore environment
+    dup2(old_stdin, STDIN_FILENO);
+    dup2(old_stdout, STDOUT_FILENO);
+    close(old_stdin);
+    close(old_stdout);
+
+    return 0;
 }
 
 void init_proc()
@@ -117,7 +196,7 @@ int main()
                 if (write_mf(mu, mf) == -1)
                     puts("[-] write file error");
             } else if (mf && !strcmp(argv0, "info")) {
-                show_fileinfo(mu, mf);
+                show_fileinfo(mu, mf, 1);
             } else if (mf && !strcmp(argv0, "enc")) {
                 if (!argv2 || enc_mf(mu, mf, argv2) == -1)
                     puts("[-] encrypt file error");

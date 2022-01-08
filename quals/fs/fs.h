@@ -57,6 +57,11 @@ static inline int mf_is_deleted(MyFile *mf)
     return mf->fid == -1;
 }
 
+static inline int mf_is_enc(MyFile *mf)
+{
+    return (mf->metadata & MF_META_ENCED) != 0;
+}
+
 static inline int mf_is_dir(MyFile *mf)
 {
     return (mf->metadata & MF_META_TYPE_IS_DIR) != 0;
@@ -116,6 +121,7 @@ int delete_mf(GC *gc, MyUser *mu, MyFile *mf);
  * > cd <file_name>
  */
 int enter_dir(MyUser *mu, MyFile *mf);
+int goto_rootfs(MyUser *mu);
 
 /**
  * read_mf(): read data from stdin and write to file
@@ -157,7 +163,7 @@ int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot);
  * show_fileinfo(): show the information of file
  * > info <file_name>
  */
-void show_fileinfo(MyUser *mu, MyFile *mf);
+void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name);
 
 /**
  * list_file(): list files in the current directory
