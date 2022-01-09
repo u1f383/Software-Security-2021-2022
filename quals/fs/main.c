@@ -194,7 +194,9 @@ int main()
         if (!strcmp(argv0, "ls")) {
             list_dir(mu);
         } else if (!strcmp(argv0, "create")) {
-            if (!argv1 || !argv2 || create_mf(mu, argv1, argv2) == -1)
+            if (!argv1 || !argv2 || 
+                is_existed(&mf, mu->curr_dir, argv2) ||
+                create_mf(mu, argv1, argv2) == -1)
                 puts("[-] create file error");
         } else {
             if (argv1 && !strcmp(argv1, "..")) {

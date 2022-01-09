@@ -126,7 +126,7 @@ void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
             memcpy(buf, mf->fn, 0x1c);
         else
             strcpy(buf, mf->fn);
-        printf("%-32st%d\t%d\t%u\t%s\n", buf, mf->fid, mf->uid, mf->size, prot);
+        printf("%-32s%d\t%d\t%u\t%s\n", buf, mf->fid, mf->uid, mf->size, prot);
     }
 }
 
@@ -156,9 +156,6 @@ int delete_mf(GC *gc, MyUser *mu, MyFile *mf)
 
 int enter_dir(MyUser *mu, MyFile *mf)
 {
-    if (mu->dir_deep == DIR_MAX_DEEP)
-        return -1;
-
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
@@ -176,6 +173,8 @@ int enter_dir(MyUser *mu, MyFile *mf)
         mu->dir_stack[mu->dir_deep - 1] = NULL;
         mu->dir_deep--;
     } else {
+        if (mu->dir_deep == DIR_MAX_DEEP)
+            return -1;
         mu->dir_deep++;
         mu->dir_stack[mu->dir_deep - 1] = mf;
     }
