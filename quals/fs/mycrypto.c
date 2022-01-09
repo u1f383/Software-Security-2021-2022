@@ -55,6 +55,9 @@ int my_decrypt(unsigned char *cipher, unsigned char *key, uint16_t *len)
 {
     if (strlen(key) != AES_KEY_LENGTH)
         return -1;
+    
+    if (*len % 0x10)
+        return -1;
 
     mycrypto_try_init();
 

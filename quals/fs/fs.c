@@ -196,8 +196,7 @@ int enc_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) ||
-        mf_is_enc(mf) || mf->data.ino->content == NULL)
+    if (!mf || !mf_is_normfile(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
@@ -215,7 +214,7 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) || !mf_is_enc(mf))
+    if (!mf || !mf_is_normfile(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
