@@ -10,9 +10,9 @@
 GC *gc;
 extern list_head rootfs;
 
+#define ENDL "\n"
 static void banner()
 {
-#define ENDL "\n"
     printf(
         " _|      _|            _|_|_|_|    _|_|_|  " ENDL
         " _|_|  _|_|  _|    _|  _|        _|        " ENDL
@@ -22,6 +22,49 @@ static void banner()
         "                   _|                      " ENDL
         "               _|_|                        " ENDL
         "                                  beta ver." ENDL
+    );
+}
+
+static void usage()
+{
+    printf(
+        "[add new user]" ENDL
+        "   useradd <username> <password>" ENDL
+        "[delete new user]" ENDL
+        "   userdel <username> <password>" ENDL
+        "[login]" ENDL
+        "   login <username> <password>" ENDL
+        "[create]" ENDL
+        "   create dir <file_name>" ENDL
+        "   create normfile <file_name>" ENDL
+        "[delete]" ENDL
+        "   rm <file_name>" ENDL
+        "[enter dir]" ENDL
+        "   cd <file_name>" ENDL
+        "[read]" ENDL
+        "   read <file_name>" ENDL
+        "[write]" ENDL
+        "   write <file_name>" ENDL
+        "[encrypt]" ENDL
+        "   enc <file_name> <key>" ENDL
+        "[decrypt]" ENDL
+        "   dec <file_name> <key>" ENDL
+        "[set permission]" ENDL
+        "   set <file_name> <prot>" ENDL
+        "[unset permission]" ENDL
+        "   unset <file_name> <prot>" ENDL
+        "[list files]" ENDL
+        "   ls" ENDL
+        "[show info of file]" ENDL
+        "   info <file_name>" ENDL
+        "[set softlink source]" ENDL
+        "   slss <file_name>" ENDL
+        "[set softlink destination]" ENDL
+        "   slsd <file_name>" ENDL
+        "[set hardlink source]" ENDL
+        "   hlss <file_name>" ENDL
+        "[set hardlink destination]" ENDL
+        "   hlsd <file_name>" ENDL
     );
 }
 
@@ -35,7 +78,7 @@ int mock()
 {
     MyFile *tmp_mf = NULL, *tmp_dir = NULL;
     MyFile *rootfs_mf = container_of(rootfs.next, MyFile, next_file);
-    MyUser *root = new_mu("root", rootfs_mf);
+    MyUser *root = new_mu("root", "root", rootfs_mf);
     int pipefd[2];
     int old_stdin, old_stdout;
 
@@ -135,6 +178,13 @@ int mock()
     if (delete_mf(gc, root, tmp_mf) == -1)
         return -1;
 
+    // Test 8. create and delete user
+    MyUser *_new_mu = new_mu("test", "test", rootfs_mf);
+    if (delete_mu("root", "root", root) != -1)
+        return -1;
+    if (delete_mu("root", "root", _new_mu) == -1)
+        return -1;
+
     // restore environment
     dup2(old_stdin, STDIN_FILENO);
     dup2(old_stdout, STDOUT_FILENO);
@@ -157,6 +207,11 @@ void init_proc()
 
 int main()
 {
+    MyFile *aa = NULL;
+    free(aa);
+    setvbuf(stdin, 0, 2, 0);
+    setvbuf(stdout, 0, 2, 0);
+
     init_proc();
     banner();
 
@@ -170,7 +225,11 @@ int main()
     char *argv0 = NULL, *argv1 = NULL, *argv2 = NULL;
     MyFile *_rootfs_mf = container_of(rootfs.next, MyFile, next_file);
     MyFile *mf = NULL;
-    MyUser *mu = new_mu("test", _rootfs_mf);
+    MyUser *mu = new_mu("user1", "1234", _rootfs_mf);
+
+
+    if (mu == NULL)
+        pexit("[-] create user error");
 
     while (1)
     {
@@ -198,6 +257,18 @@ int main()
                 is_existed(&mf, mu->curr_dir, argv2) ||
                 create_mf(mu, argv1, argv2) == -1)
                 puts("[-] create file error");
+        } else if (argv1 && argv2 && !strcmp(argv0, "useradd")) {
+            if (new_mu(argv1, argv2, _rootfs_mf) == NULL)
+                puts("[-] change user error");
+        } else if (argv1 && argv2 && !strcmp(argv0, "userdel")) {
+            if (delete_mu(argv1, argv2, mu) == -1)
+                puts("[-] change user error");
+        } else if (argv1 && argv2 && !strcmp(argv0, "login")) {
+            MyUser *tmp_mu = login_mu(argv1, argv2);
+            if (tmp_mu == NULL)
+                puts("[-] change user error");
+            else
+                mu = tmp_mu;
         } else {
             if (argv1 && !strcmp(argv1, "..")) {
                 if (mu->dir_deep == 1) {
@@ -240,14 +311,16 @@ int main()
             } else if (mf && !strcmp(argv0, "slss")) {
                 softlink_setsrc(mu, mf);
             } else if (!strcmp(argv0, "slsd")) {
-                if (mf || softlink_setdst(mu, argv1) == -1)
+                if (mf || !argv1 || softlink_setdst(mu, argv1) == -1)
                     puts("[-] softlink error");
             } else if (mf && !strcmp(argv0, "hlss")) {
                 hardlink_setsrc(mu, mf);
             } else if (!strcmp(argv0, "hlsd")) {
-                if (mf || hardlink_setdst(mu, argv1) == -1)
+                if (mf || !argv1 || hardlink_setdst(mu, argv1) == -1)
                     puts("[-] hardlink error");
-            }  else {
+            } else if (!strcmp(argv0, "help") || !strcmp(argv0, "?")) {
+                usage();
+            } else {
                 if (argv1 && !mf)
                     puts("[-] file not found");
                 else

@@ -13,7 +13,7 @@ MyFile *__new_mf()
 {
     MyFile *mf = (MyFile *) malloc(sizeof(MyFile));
     mf->fid = mf_cnt++;
-    mf->uid = -1;
+    mf->uid = 0;
     mf->refcnt = 1;
     mf->size = 0;
     mf->metadata = 0;
@@ -23,24 +23,25 @@ MyFile *__new_mf()
     return mf;
 }
 
-MyFile *_new_normfile(int8_t uid, char *fn)
+MyFile *_new_normfile(uint8_t uid, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
     mf->fn = strdup(fn);
     mf->data.ino = (iNode *) malloc(sizeof(iNode));
+    mf->data.ino->content = NULL;
     mf->data.ino->refcnt = 1;
     return mf;
 }
 
-MyFile *_new_dir(int8_t uid, char *fn)
+MyFile *_new_dir(uint8_t uid, char *fn)
 {
     MyFile *mf = _new_normfile(uid, fn);
     mf->metadata |= MF_META_TYPE_IS_DIR;
     return mf;
 }
 
-MyFile *_new_slink(int8_t uid, MyFile *link, char *fn)
+MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
@@ -52,7 +53,7 @@ MyFile *_new_slink(int8_t uid, MyFile *link, char *fn)
     return mf;
 }
 
-MyFile *_new_hlink(int8_t uid, MyFile *link, char *fn)
+MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn)
 {
     MyFile *mf = __new_mf();
     mf->uid = uid;
@@ -107,18 +108,29 @@ int create_mf(MyUser *mu, char *type, char *fn)
 void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
 {
     const char *prot = NULL;
+    const char *uname = NULL;
+    const char *type = NULL;
+
+    if (mf_is_slink(mf))
+        type = "s";
+    else if (mf_is_normfile(mf))
+        type = "-";
+    else if (mf_is_dir(mf))
+        type = "d";
+    else
+        return;
 
     if (mf_is_readable(mf) && mf_is_writable(mf))
-        prot = "RW";
+        prot = "rw";
     else if (mf_is_readable(mf))
-        prot = "R-";
+        prot = "r-";
     else if (mf_is_writable(mf))
-        prot = "-W";
+        prot = "-w";
     else
         prot = "--";
 
     if (all_name) {
-        printf("%s    %d\t%d\t%u\t%s\n", mf->fn, mf->fid, mf->uid, mf->size, prot);
+        printf("%srw----%s- %-32s%8u %s\n", type, prot, uname, mf->size, mf->fn);
     } else {
         char buf[0x20] = {0};
         memset(buf, '.', 0x1f);
@@ -126,7 +138,12 @@ void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
             memcpy(buf, mf->fn, 0x1c);
         else
             strcpy(buf, mf->fn);
-        printf("%-32s%d\t%d\t%u\t%s\n", buf, mf->fid, mf->uid, mf->size, prot);
+        
+        uname = get_uname_by_uid(mf->uid);
+        if (uname == NULL)
+            return;
+        
+        printf("%srw----%s- %-32s%8u %-32s\n", type, prot, uname, mf->size, buf);
     }
 }
 
@@ -138,6 +155,7 @@ int delete_mf(GC *gc, MyUser *mu, MyFile *mf)
      */
     if (mf_is_dir(mf) && mf->size > 0)
         return -1;
+    
     /**
      * even though file is removed from current directory,
      * it is maybe softlinked by other file
@@ -173,7 +191,7 @@ int enter_dir(MyUser *mu, MyFile *mf)
         mu->dir_stack[mu->dir_deep - 1] = NULL;
         mu->dir_deep--;
     } else {
-        if (mu->dir_deep == DIR_MAX_DEEP)
+        if (mu->dir_deep == MU_DIR_MAX_DEEP)
             return -1;
         mu->dir_deep++;
         mu->dir_stack[mu->dir_deep - 1] = mf;
@@ -196,7 +214,7 @@ int enc_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) || mf->data.ino->content == NULL)
+    if (!mf || !mf_is_normfile(mf) || mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
@@ -214,7 +232,7 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) || mf->data.ino->content == NULL)
+    if (!mf || !mf_is_normfile(mf) || !mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
@@ -327,7 +345,7 @@ void list_dir(MyUser *mu)
     MyFile *curr_mf = NULL;
     list_head *curr = mu->curr_dir->dir_hd.next;
 
-    printf("%-32s[fid]\t[uid]\t[size]\t[perm]\n", "[fname]");
+    printf("total %u\n", mu->curr_dir->size);
     while (curr) {
         curr_mf = container_of(curr, MyFile, next_file);
         show_fileinfo(mu, curr_mf, 0);
@@ -351,6 +369,7 @@ int softlink_setdst(MyUser *mu, char *fn)
     
     MyFile *mf = _new_slink(mu->uid, mu->softlink, fn);
     list_add(&mu->curr_dir->dir_hd, &mf->next_file);
+    mu->curr_dir->size++;
     mu->softlink = NULL;
     return 0;
 }
@@ -375,6 +394,7 @@ int hardlink_setdst(MyUser *mu, char *fn)
     
     MyFile *mf = _new_hlink(mu->uid, mu->hardlink, fn);
     list_add(&mu->curr_dir->dir_hd, &mf->next_file);
+    mu->curr_dir->size++;
     mu->hardlink = NULL;
     return 0;
 }
@@ -388,13 +408,14 @@ int mf_gc_list_add(GC *gc, list_head *hd)
 
     // if there are 16 deleted files, sweep them
     MyFile *curr_mf = NULL;
-    list_head *curr = gc->next_g.next;
+    list_head *curr = gc->next_g.next, *next = NULL;
 
     while (curr) {
+        next = curr->next;
         curr_mf = container_of(curr, MyFile, next_file);
         if (_release_mf(curr_mf) == -1)
             return -1;
-        curr = curr->next;
+        curr = next;
     }
     return 0;
 }
@@ -410,7 +431,7 @@ int _release_mf(MyFile *mf)
         return 0;
 
     if (mf_is_hlink(mf))
-        if (mf->data.ino->refcnt-- != 0)
+        if (--mf->data.ino->refcnt != 0)
             goto ret;
     
     if (mf_is_normfile(mf)) {

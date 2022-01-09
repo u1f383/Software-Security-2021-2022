@@ -26,7 +26,7 @@ typedef struct iNode
 typedef struct _MyFile
 {
     int8_t fid;
-    int8_t uid;
+    uint8_t uid;
     uint8_t refcnt;
     uint8_t metadata;
     uint16_t size;
@@ -86,10 +86,10 @@ static inline int mf_is_normfile(MyFile *mf)
 
 MyFile *__new_mf();
 
-MyFile *_new_normfile(int8_t uid, char *fn);
-MyFile *_new_dir(int8_t uid, char *fn);
-MyFile *_new_slink(int8_t uid, MyFile *link, char *fn);
-MyFile *_new_hlink(int8_t uid, MyFile *link, char *fn);
+MyFile *_new_normfile(uint8_t uid, char *fn);
+MyFile *_new_dir(uint8_t uid, char *fn);
+MyFile *_new_slink(uint8_t uid, MyFile *link, char *fn);
+MyFile *_new_hlink(uint8_t uid, MyFile *link, char *fn);
 MyFile *_get_mf_by_fname(MyFile *hd, char *fn);
 
 int _release_mf();

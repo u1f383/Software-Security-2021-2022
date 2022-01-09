@@ -1,2 +1,2 @@
 all:
-	gcc -o hello-world hello-world.c
+	gcc -no-pie -o hello-world hello-world.c
