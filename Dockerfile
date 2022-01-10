@@ -42,7 +42,6 @@ RUN git clone https://github.com/scwuaptx/Pwngdb.git ~/Pwngdb && \
 RUN pip3 install pwntools==4.4.0
 RUN gem install seccomp-tools one_gadget
 RUN ln -s /usr/local/lib/python3.8/dist-packages/bin/ROPgadget /bin/ROPgadget
-RUN echo "set-option -g default-shell /bin/fish" > /root/.tmux.conf && \
-    tmux source-file ~/.tmux.conf
+RUN echo "set-option -g default-shell /bin/fish" > /root/.tmux.conf
 
 CMD ["/bin/fish"]

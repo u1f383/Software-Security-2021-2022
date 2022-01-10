@@ -29,7 +29,8 @@ MyFile *_new_normfile(uint8_t uid, char *fn)
     mf->uid = uid;
     mf->fn = strdup(fn);
     mf->data.ino = (iNode *) malloc(sizeof(iNode));
-    mf->data.ino->content = NULL;
+    // DEBUG
+    // mf->data.ino->content = NULL;
     mf->data.ino->refcnt = 1;
     return mf;
 }
@@ -177,10 +178,7 @@ int enter_dir(MyUser *mu, MyFile *mf)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
-        return -1;
-
-    if (!mf_is_dir(mf))
+    if (!mf || mf_is_deleted(mf) || !mf_is_dir(mf))
         return -1;
 
     if (mf->uid != mu->uid && !mf_is_readable(mf))
@@ -214,7 +212,8 @@ int enc_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) || mf_is_enc(mf) || mf->data.ino->content == NULL)
+    if (!mf || mf_is_deleted(mf) || !mf_is_normfile(mf) ||
+        mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
@@ -232,7 +231,8 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf || !mf_is_normfile(mf) || !mf_is_enc(mf) || mf->data.ino->content == NULL)
+    if (!mf || mf_is_deleted(mf) || !mf_is_normfile(mf) ||
+        !mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
@@ -250,10 +250,7 @@ int read_mf(MyUser *mu, MyFile *mf)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
-        return -1;
-
-    if (mf_is_deleted(mf) || !mf_is_normfile(mf))
+    if (!mf || mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
     if (mf->uid != mu->uid && !mf_is_readable(mf))
@@ -261,12 +258,20 @@ int read_mf(MyUser *mu, MyFile *mf)
     
     char buf[MF_SIZE_MAX];
     int nr;
+
     nr = read(STDIN_FILENO, buf, MF_SIZE_MAX);
-    if (nr != -1) {
-        mf->size = nr;
-        mf->data.ino->content = realloc(mf->data.ino->content, mf->size + 0x10);
-        memcpy(mf->data.ino->content, buf, mf->size);
-    }
+    if (nr == -1)
+        return -1;
+
+    uint16_t tmp = mf->size % 0x10;
+    int16_t chk_min = tmp >= 0x9 ? (mf->size - tmp + 0x9) : (mf->size - tmp - 0x7);
+    int16_t chk_max = chk_min + 0xf;
+    
+    if (!mf->size || chk_min < 0 || chk_max < 0 || chk_min > nr || chk_max < nr)
+        mf->data.ino->content = realloc(mf->data.ino->content, nr + 0x10);
+        
+    mf->size = nr;
+    memcpy(mf->data.ino->content, buf, mf->size);
     return nr;
 }
 
@@ -275,10 +280,7 @@ ssize_t write_mf(MyUser *ms, MyFile *mf)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
-        return -1;
-        
-    if (mf_is_deleted(mf) || !mf_is_normfile(mf))
+    if (!mf || mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
     if (mf->uid != ms->uid && !mf_is_writable(mf))
@@ -297,12 +299,9 @@ int set_mf_prot(MyUser *ms, MyFile *mf, char *prot)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
+    if (!mf || mf_is_deleted(mf))
         return -1;
         
-    if (mf_is_deleted(mf))
-        return -1;
-
     if (mf->uid != ms->uid && !mf_is_writable(mf))
         return -1;
 
@@ -321,10 +320,7 @@ int unset_mf_prot(MyUser *ms, MyFile *mf, char *prot)
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
 
-    if (!mf)
-        return -1;
-        
-    if (mf_is_deleted(mf) || !mf_is_normfile(mf))
+    if (!mf || mf_is_deleted(mf))
         return -1;
 
     if (mf->uid != ms->uid && !mf_is_writable(mf))
@@ -403,7 +399,7 @@ int mf_gc_list_add(GC *gc, list_head *hd)
 {
     list_add(&gc->next_g, hd);
 
-    if (gc->delcnt++ % 0x10)
+    if (++gc->delcnt % 0x10)
         return 0;
 
     // if there are 16 deleted files, sweep them
