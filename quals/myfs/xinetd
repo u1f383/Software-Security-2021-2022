@@ -1,0 +1,13 @@
+service myfs
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/myfs/run.sh
+    user = myfs
+    port = 30281
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

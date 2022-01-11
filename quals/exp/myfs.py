@@ -5,7 +5,7 @@ from pwn import *
 context.arch = 'amd64'
 context.terminal = ['tmux', 'splitw', '-h']
 
-r = process('./main', aslr=False)
+r = process('./myfs', aslr=False)
 
 def create_user(u, p):
     r.sendlineafter('> ', f"useradd {u} {p}")

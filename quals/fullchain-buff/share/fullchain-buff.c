@@ -4,7 +4,6 @@
 #include <string.h>
 
 char global[0x20];
-__thread int cnt = 3;
 
 void myread(char *addr)
 {
@@ -28,6 +27,7 @@ void chal()
 {
     char local[0x20] = {0};
     char *ptr = NULL;
+    register int cnt = 3;
 
     while (cnt--)
     {
