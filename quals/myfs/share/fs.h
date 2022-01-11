@@ -137,15 +137,15 @@ ssize_t write_mf(MyUser *mu, MyFile *mf);
 
 /**
  * enc_mf(): encrypt file
- * > enc <file_name> <key>
+ * > enc <file_name>
  */
-int enc_mf(MyUser *mu, MyFile *mf, char *key);
+int enc_mf(MyUser *mu, MyFile *mf);
 
 /**
  * dec_mf(): decrypt file
- * > dec <file_name> <key>
+ * > dec <file_name>
  */
-int dec_mf(MyUser *mu, MyFile *mf, char *key);
+int dec_mf(MyUser *mu, MyFile *mf);
 
 /**
  * set_mf_prot(): set the prot of file

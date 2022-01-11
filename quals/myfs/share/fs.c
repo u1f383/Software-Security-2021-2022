@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 list_head rootfs = { .next = NULL };
+extern unsigned char key[17];
 
 MyFile *__new_mf()
 {
@@ -29,8 +30,6 @@ MyFile *_new_normfile(uint8_t uid, char *fn)
     mf->uid = uid;
     mf->fn = strdup(fn);
     mf->data.ino = (iNode *) malloc(sizeof(iNode));
-    // DEBUG
-    // mf->data.ino->content = NULL;
     mf->data.ino->refcnt = 1;
     return mf;
 }
@@ -207,7 +206,7 @@ int goto_rootfs(MyUser *mu)
     return 0;
 }
 
-int enc_mf(MyUser *mu, MyFile *mf, char *key)
+int enc_mf(MyUser *mu, MyFile *mf)
 {
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
@@ -219,14 +218,14 @@ int enc_mf(MyUser *mu, MyFile *mf, char *key)
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
         return -1;
 
-    if (my_encrypt(mf->data.ino->content, key, &mf->size) == -1)
+    if (my_encrypt(mf->data.ino->content, &mf->size) == -1)
         return -1;
     mf->metadata |= MF_META_ENCED;
 
     return 0;
 }
 
-int dec_mf(MyUser *mu, MyFile *mf, char *key)
+int dec_mf(MyUser *mu, MyFile *mf)
 {
     while (mf && mf_is_slink(mf))
         mf = mf->data.link;
@@ -238,7 +237,7 @@ int dec_mf(MyUser *mu, MyFile *mf, char *key)
     if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
         return -1;
 
-    if (my_decrypt(mf->data.ino->content, key, &mf->size) == -1)
+    if (my_decrypt(mf->data.ino->content, &mf->size) == -1)
         return -1;
     mf->metadata &= ~MF_META_ENCED;
 

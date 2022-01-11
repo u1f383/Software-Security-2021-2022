@@ -7,6 +7,7 @@
 #include <openssl/rand.h>
 
 unsigned char iv[AES_BLOCK_SIZE] = {0};
+unsigned char key[AES_KEY_LENGTH + 1] = {0};
 unsigned char mycrypto_is_init = 0;
 
 void mycrypto_try_init()
@@ -15,6 +16,10 @@ void mycrypto_try_init()
         return;
     
     RAND_bytes(iv, AES_BLOCK_SIZE);
+    do {
+        RAND_bytes(key, AES_KEY_LENGTH);
+    } while (strlen(key) != 16);
+
     mycrypto_is_init = 1;
 }
 
@@ -24,11 +29,8 @@ void hexdump(unsigned char *data, uint16_t len)
         printf("%02x", data[i]);
 }
 
-int my_encrypt(unsigned char *plaintext, unsigned char *key, uint16_t *len)
+int my_encrypt(unsigned char *plaintext, uint16_t *len)
 {
-    if (strlen(key) != AES_KEY_LENGTH)
-        return -1;
-
     mycrypto_try_init();
 
     AES_KEY encryption_key;
@@ -36,10 +38,8 @@ int my_encrypt(unsigned char *plaintext, unsigned char *key, uint16_t *len)
     memcpy(iv_enc, iv, AES_BLOCK_SIZE);
 
     // padding
-    if (*len % 0x10) {
-        memset(plaintext + *len, 0x10 - (*len % 0x10), 0x10 - (*len % 0x10));
-        *len += 0x10 - (*len % 0x10);
-    }
+    memset(plaintext + *len, 0x10 - (*len % 0x10), 0x10 - (*len % 0x10));
+    *len += 0x10 - (*len % 0x10);
 
     unsigned char *output = (unsigned char *) malloc(*len);
 
@@ -51,15 +51,12 @@ int my_encrypt(unsigned char *plaintext, unsigned char *key, uint16_t *len)
     return 0;
 }
 
-int my_decrypt(unsigned char *cipher, unsigned char *key, uint16_t *len)
+int my_decrypt(unsigned char *cipher, uint16_t *len)
 {
-    if (strlen(key) != AES_KEY_LENGTH)
-        return -1;
+    mycrypto_try_init();
     
     if (*len % 0x10)
         return -1;
-
-    mycrypto_try_init();
 
     AES_KEY decryption_key;
     unsigned char iv_dec[AES_BLOCK_SIZE];
@@ -73,16 +70,16 @@ int my_decrypt(unsigned char *cipher, unsigned char *key, uint16_t *len)
     // check padding
     unsigned char last = output[*len - 1];
     int cnt = 0;
-    if (last >= 0 && last < 0x10) {
-        for (int i = *len - 1; output[i] == last; i--)
-            cnt++;
-        if (cnt != last) {
-            free(output);
-            return -1;
-        }
-        memset(cipher, 0, *len);
-        *len -= last;
+
+    for (int i = *len - 1; output[i] == last; i--)
+        cnt++;
+
+    if (cnt != last) {
+        free(output);
+        return -1;
     }
+    memset(cipher, 0, *len);
+    *len -= last;
     memcpy(cipher, output, *len);
     free(output);
     

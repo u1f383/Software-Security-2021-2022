@@ -1,4 +1,4 @@
 #!/bin/sh
 
 exec 2>/dev/null
-timeout 60 /home/myfs/myfs
+timeout 1800 /home/myfs/myfs

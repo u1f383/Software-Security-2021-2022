@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static MyUser *user_list[MU_MAX_USER_NUM];
+const uint32_t mu_max_user_cnt = 0x100;
+static MyUser *user_list[0x100];
 
 MyUser *__new_mu(const char *username, const char *password, MyFile *rootfs_mf)
 {
-    if (mu_cnt == MU_MAX_USER_NUM)
+    if (mu_cnt == mu_max_user_cnt)
         return NULL;
 
     if (strlen(username) >= MU_MAX_UNAME_LEN)
