@@ -4,10 +4,9 @@ service myfs
     type = UNLISTED
     socket_type = stream
     protocol = tcp
-    server = /home/myfs/run.sh
-    user = myfs
-    port = 30281
+    server = /home/admin/quals/myfs/run.sh
+    user = admin
+    port = 30213
     flags = REUSE
-    bind = 0.0.0.0
     wait = no
 }

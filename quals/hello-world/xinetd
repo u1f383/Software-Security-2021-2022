@@ -6,7 +6,7 @@ service hello-world
     protocol = tcp
     server = /home/hello-world/run.sh
     user = hello-world
-    port = 30282
+    port = 30212
     flags = REUSE
     bind = 0.0.0.0
     wait = no

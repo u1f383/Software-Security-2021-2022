@@ -129,6 +129,10 @@ void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
     else
         prot = "--";
 
+    uname = get_uname_by_uid(mf->uid);
+    if (uname == NULL)
+        return;
+
     if (all_name) {
         printf("%srw----%s- %-32s%8u %s\n", type, prot, uname, mf->size, mf->fn);
     } else {
@@ -138,10 +142,6 @@ void show_fileinfo(MyUser *mu, MyFile *mf, uint8_t all_name)
             memcpy(buf, mf->fn, 0x1c);
         else
             strcpy(buf, mf->fn);
-        
-        uname = get_uname_by_uid(mf->uid);
-        if (uname == NULL)
-            return;
         
         printf("%srw----%s- %-32s%8u %-32s\n", type, prot, uname, mf->size, buf);
     }
@@ -215,7 +215,7 @@ int enc_mf(MyUser *mu, MyFile *mf)
         mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
-    if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
+    if (mf->uid != mu->uid && !mf_is_readable(mf))
         return -1;
 
     if (my_encrypt(mf->data.ino->content, &mf->size) == -1)
@@ -234,7 +234,7 @@ int dec_mf(MyUser *mu, MyFile *mf)
         !mf_is_enc(mf) || mf->data.ino->content == NULL)
         return -1;
 
-    if (mf->uid != mu->uid && (!mf_is_readable(mf) || !mf_is_writable(mf)))
+    if (mf->uid != mu->uid && !mf_is_readable(mf))
         return -1;
 
     if (my_decrypt(mf->data.ino->content, &mf->size) == -1)
@@ -257,6 +257,9 @@ int read_mf(MyUser *mu, MyFile *mf)
     
     char buf[MF_SIZE_MAX];
     int nr;
+
+    if (mf_is_enc(mf))
+        return read(STDIN_FILENO, mf->data.ino->content, mf->size);
 
     nr = read(STDIN_FILENO, buf, MF_SIZE_MAX);
     if (nr == -1)
@@ -282,15 +285,13 @@ ssize_t write_mf(MyUser *ms, MyFile *mf)
     if (!mf || mf_is_deleted(mf) || !mf_is_normfile(mf))
         return -1;
 
+    if (mf_is_enc(mf))
+        return hexdump(mf->data.ino->content, AES_BLOCK_SIZE);
+    
     if (mf->uid != ms->uid && !mf_is_writable(mf))
         return -1;
-    
-    ssize_t wn;
-    if (mf_is_enc(mf))
-        hexdump(mf->data.ino->content, mf->size);
-    else
-        wn = write(STDOUT_FILENO, mf->data.ino->content, mf->size);
-    return wn;
+
+    return write(STDOUT_FILENO, mf->data.ino->content, mf->size);
 }
 
 int set_mf_prot(MyUser *ms, MyFile *mf, char *prot)

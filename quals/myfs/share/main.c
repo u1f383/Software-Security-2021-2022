@@ -102,7 +102,7 @@ int mock()
     
     // Test 2. update file and directory permission
     tmp_mf = get_mf_by_fname(root, "test_file_L1");
-    if (set_mf_prot(root, tmp_mf, "write") == -1)
+    if (set_mf_prot(root, tmp_mf, "read") == -1)
         return -1;
     tmp_dir = get_mf_by_fname(root, "test_dir_L1");
     if (set_mf_prot(root, tmp_dir, "read,write") == -1)
@@ -121,23 +121,28 @@ int mock()
     // Test 4. read and write file
     char buf[0x20] = {0};
     char buf2[0x20] = {0};
-    // int flag1_fd = open("/home/myfs/flag1.txt", O_RDONLY);
-    int flag1_fd = open("/pwnbox/myfs/share/flag1.txt", O_RDONLY);
+    int flag1_fd = open("/home/myfs/flag1.txt", O_RDONLY);
+    int flag_len;
+    
     if (flag1_fd == -1)
         return -1;
     read(flag1_fd, buf, 0x10);
     close(flag1_fd);
+
+
+    if ((flag_len = strlen(buf)) >= 0x10)
+        return -1;
     
     tmp_mf = get_mf_by_fname(root, "test_file2_L2");
-    write(STDOUT_FILENO, buf, 0x10);
+    write(STDOUT_FILENO, buf, flag_len);
     if (read_mf(root, tmp_mf) == -1)
         return -1;
     if (write_mf(root, tmp_mf) == -1)
         return -1;
-    read(STDIN_FILENO, buf2, 0x10);
+    read(STDIN_FILENO, buf2, flag_len);
     if (strcmp(buf, buf2))
         return -1;
-    // unlink("/home/myfs/flag1.txt");
+    unlink("/home/myfs/flag1.txt");
     
     // Test 5. encrypt and decrypt file
     if (enc_mf(root, tmp_mf) == -1)
@@ -146,7 +151,7 @@ int mock()
         return -1;
     if (write_mf(root, tmp_mf) == -1)
         return -1;
-    read(STDIN_FILENO, buf2, 0x10);
+    read(STDIN_FILENO, buf2, flag_len);
     if (strcmp(buf, buf2))
         return -1;
 
@@ -195,20 +200,22 @@ int mock()
     if (delete_mu("root", "root", _new_mu) == -1)
         return -1;
 
-    // int flag2_fd = open("/home/myfs/flag2.txt", O_RDONLY);
-    int flag2_fd = open("/pwnbox/myfs/share/flag2.txt", O_RDONLY);
+    int flag2_fd = open("/home/myfs/flag2.txt", O_RDONLY);
     if (flag2_fd == -1)
         return -1;
     read(flag2_fd, buf, 0x10);
     close(flag2_fd);
 
+    if ((flag_len = strlen(buf)) >= 0x10)
+        return -1;
+
     tmp_mf = get_mf_by_fname(root, "test_file_L1");
-    write(STDOUT_FILENO, buf, 0x10);
+    write(STDOUT_FILENO, buf, flag_len);
     if (read_mf(root, tmp_mf) == -1)
         return -1;
     if (enc_mf(root, tmp_mf) == -1)
         return -1;
-    // unlink("/home/myfs/flag2.txt");
+    unlink("/home/myfs/flag2.txt");
 
     // restore environment
     dup2(old_stdin, STDIN_FILENO);
@@ -324,7 +331,7 @@ int main()
                     puts("[-] encrypt file error");
             } else if (mf && !strcmp(argv0, "dec")) {
                 if (dec_mf(mu, mf) == -1)
-                    puts("[-] deccrypt file error");
+                    puts("[-] decrypt file error");
             } else if (mf && !strcmp(argv0, "set")) {
                 if (!argv2 || set_mf_prot(mu, mf, argv2) == -1)
                     puts("[-] set permission error");

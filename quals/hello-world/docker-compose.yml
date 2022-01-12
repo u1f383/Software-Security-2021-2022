@@ -7,6 +7,6 @@ services:
       - ./share:/home/hello-world:ro
       - ./xinetd:/etc/xinetd.d/hello-world:ro
     ports:
-      - "30282:30282"
+      - "30212:30212"
     expose:
-      - "30282"
+      - "30212"

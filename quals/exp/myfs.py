@@ -67,11 +67,28 @@ def hlss_file(fn):
 def hlsd_file(fn):
     r.sendlineafter('> ', f"hlsd {fn}")
 
+def verify_hash(prefix, answer, difficulty):
+    h = hashlib.sha256()
+    h.update((prefix + answer).encode())
+    bits = ''.join(bin(i)[2:].zfill(8) for i in h.digest())
+    return bits.startswith('0' * difficulty)
+
+def solve_pow(r):
+    r.recvuntil('sha256(')
+    prefix = r.recvuntil(' + ???)', drop = True).decode()
+
+    i = 0
+    while not verify_hash(prefix, str(i), 10):
+        i += 1
+
+    r.sendlineafter('POW answer:', str(i))
+
 if sys.argv[2] == 'flag3':
     for _ in range(0x40):
         try:
             if sys.argv[1] == 'remote':
-                r = remote('owo', 1234)
+                r = remote('edu-ctf.zoolab.org', 30213)
+                solve_pow(r)
             else:
                 r = process('./myfs')
 
@@ -85,6 +102,7 @@ if sys.argv[2] == 'flag3':
                 delete_file(str(i))
 
             create_normfile('owo')
+            # gdb.attach(r)
             read_file('owo', b'\x50\x3b')
 
             create_normfile('qaq')
@@ -121,38 +139,53 @@ if sys.argv[2] == 'flag3':
 
             delete_file('qaq')
             r.interactive()
+            exit(1)
         except Exception as e:
             print(e)
 elif sys.argv[2] == 'flag2':
-    if sys.argv[1] == 'remote':
-        r = remote('owo', 1234)
-    else:
-        r = process('./myfs')
-    
-    write_file('test_file_L1')
-    cipher = r.recvuntil('/> ', drop=True)
-    cipher = bytes.fromhex(cipher.decode())
-    info(f"cipher: {cipher}")
-    r.sendline(f"create normfile padding_oracle")
-
+    # flag = b'T}\x06\x06\x06\x06\x06\x06'
     flag = b''
-    
-    read_file('padding_oracle', 'XD')
-    enc_file('padding_oracle')
+    for i in range(len(flag) + 1, 0x10):
+        if sys.argv[1] == 'remote':
+            r = remote('edu-ctf.zoolab.org', 30213)
+            solve_pow(r)
+        else:
+            r = process('./myfs')
+        
+        write_file('test_file_L1')
+        cipher = r.recvuntil('/> ', drop=True)
+        cipher = bytes.fromhex(cipher.decode())
+        
+        tmp_cipher = cipher[:-i] + b'\x00'
+        for j in range(-i+1, 0, 1):
+            tmp_cipher += bytes([ cipher[j] ^ flag[j] ^ i ])
 
-    for bt in range(0xff):
-        read_file('padding_oracle', cipher[:-1] + bytes([bt]))
-        dec_file('padding_oracle')
+        print('cipher:', cipher)
+        print('tmp_cipher:', tmp_cipher)
+        r.sendline("info test_file_L1")
+        for bt in range(0x100):
+            if bt == cipher[-i]:
+                continue
+            if -i + 1 == 0:
+                try_cipher = tmp_cipher[:-i] + bytes([bt])
+            else:
+                try_cipher = tmp_cipher[:-i] + bytes([bt]) + tmp_cipher[-i+1:]
+            print(try_cipher, bt)
+            read_file('test_file_L1', try_cipher)
+            dec_file('test_file_L1')
+            oracle = r.recv(3)
 
-        oracle = r.recv(3)
-        if oracle != b'[-]':
-            print(cipher[:-1] + bytes([bt]))
-            break
-
+            if oracle != b'[-]':
+                flag = bytes([bt ^ i ^ cipher[-i]]) + flag
+                print("[flag]: ", flag)
+                break
+        r.close()
+        
     r.interactive()
 elif sys.argv[2] == 'flag1':
     if sys.argv[1] == 'remote':
-        r = remote('owo', 1234)
+        r = remote('edu-ctf.zoolab.org', 30213)
+        solve_pow(r)
     else:
         r = process('./myfs')
     

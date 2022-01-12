@@ -1,2 +1,2 @@
 all:
-	gcc -no-pie -o hello-world hello-world.c
+	gcc -fno-stack-protector -no-pie -o hello-world hello-world.c

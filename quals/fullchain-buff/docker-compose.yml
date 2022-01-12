@@ -7,6 +7,6 @@ services:
       - ./share:/home/fullchain-buff:ro
       - ./xinetd:/etc/xinetd.d/fullchain-buff:ro
     ports:
-      - "30280:30280"
+      - "30205:30205"
     expose:
-      - "30280"
+      - "30205"

@@ -27,6 +27,7 @@ static void fini()
 int main()
 {
     printf("Hello, world !\n");
+    fflush(stdout);
     sleep(15);
     return 0;
 }
