@@ -200,6 +200,7 @@ int mock()
     if (delete_mu("root", "root", _new_mu) == -1)
         return -1;
 
+    memset(buf, 0, 0x10);
     int flag2_fd = open("/home/myfs/flag2.txt", O_RDONLY);
     if (flag2_fd == -1)
         return -1;
