@@ -10,69 +10,6 @@ context.terminal = ['tmux', 'splitw', '-h']
 if len(sys.argv) != 3:
     exit(1)
 
-"""
-##### **myfs** #####
-flag1: integer overflow
-雖然看似 uid 有擋不能 == 0x100，但是 mu_cnt 只在 0 ~ 255，因此不會有 256 的情況。
-所以當你建立夠多使用者，就能讓你的 uid 變成 0，因此可以存取到 root 的檔案。
-
-const uint32_t mu_max_user_cnt = 0x100;
-static uint8_t mu_cnt = 0;
-MyUser *__new_mu(const char *username, const char *password, MyFile *rootfs_mf)
-{
-    if (mu_cnt == mu_max_user_cnt)
-        return NULL;
-}
-
----
-
-flag2: padding oracle
-請看 my_encrypt() 與 my_decrypt() 的加解密過程
-
-leak iv:
-ssize_t write_mf(MyUser *ms, MyFile *mf)
-{
-    ...
-    if (mf_is_enc(mf))
-        return hexdump(mf->data.ino->content, AES_BLOCK_SIZE);
-    ...
-}
-
-overwrite iv:
-int read_mf(MyUser *mu, MyFile *mf)
-{
-    ...
-    if (mf_is_enc(mf))
-        return read(STDIN_FILENO, mf->data.ino->content, mf->size);
-    ...
-}
-
----
-
-flag3: unintialized data
-發現後可以控制 tcache chunk 的 fd，因此可以指定拿到某個 heap address (需要撞 1/16)，
-再來控制接下來拿到的 iNode struct 跟某塊 content 做重疊，就能透過 mf_read() / mf_write()
-來 leak heap address 與 overwrite content pointer，用 aar 讀 openssl api 使用時殘留的 libc address，
-aaw 寫 __free_hook 即可。
-
-MyFile *_new_normfile(uint8_t uid, char *fn)
-{
-    MyFile *mf = __new_mf();
-    mf->uid = uid;
-    mf->fn = strdup(fn);
-    mf->data.ino = (iNode *) malloc(sizeof(iNode));
-    // 這邊應該要多一個: mf->data.ino->content = NULL;
-    mf->data.ino->refcnt = 1;
-    return mf;
-}
-
----
-
-幾本上 flag2 最明顯，因為沒事不會設計成可以篡改加密的檔案，反正寫法有夠怪；
-解掉 flag1 也能解 flag2，因為直接用 dec 解開就好；
-解掉 flag3 也能解 flag1,2，因為有 aar 跟 aaw，改 uid + leak key 即可
-"""
-
 r = None
 
 def create_user(u, p):
