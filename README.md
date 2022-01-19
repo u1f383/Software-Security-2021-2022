@@ -65,3 +65,14 @@ repo 目錄的結構如下：
     3. 可以想辦法從 freed chunk 留下的 smallbin 來 leak libc
     4. 可以想辦法讓 `name` 或是 `desc` 等可以在 `update()` 更新值的 member，與某個 `User` 結構做重疊，而後透過 UAF 來竄改 pointer 指向的位址
     5. 其他打法也有透過 `chat()` 的 overflow，或者甚至透過控制 `User->fifo` 的值來直接讀 `"/proc/self/maps"` 做 leak，或猜測檔名來直接讀 flag 的內容等等
+
+## Week 3: FILE Exploitation & Browser Exploitation
+> 講解 FILE 的結構以及利用技巧，並且對 browser pwn 做一些簡單的介紹
+- 講者: Kia
+- 影片: [video](https://youtu.be/1a-9iJn-csI)
+- Slide1: [FILE Struct](https://docs.google.com/presentation/d/1DrdKADYM0VCUvfyw5GFN0fisOEX9CCt4H1zQgpofjJo/edit#slide=id.p2)
+- Slide2: [Browser Pwn](https://docs.google.com/presentation/d/1BY8O5xKpopcf1jEFPMuvRXKYqilcZ7fexcHUFReEA0Y/edit#slide=id.p2)
+- Lab
+  - OvO8: [Download](https://drive.google.com/file/d/1vIMysdYS97pZ-sqrPqEORXGY5RIJp2VH/view?usp=sharing)
+- Hw
+  - FILE note: [Download](https://drive.google.com/file/d/1ABVJWtLjda8Z3_ZT4c9OnztIMFkvbq8A/view?usp=sharing)
