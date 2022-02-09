@@ -37,8 +37,8 @@ int main()
     // overwrite victim's fd
     b[0x120/8-2] = (long)stack_var; 
     
-    // get target
     malloc(0x100);
+    // get target
     intptr_t *c = malloc(0x100);
     assert(c == stack_var); // sanity check
     

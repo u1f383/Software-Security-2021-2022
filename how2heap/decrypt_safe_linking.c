@@ -12,6 +12,7 @@ long decrypt(long cipher)
         int bits = 64 - 12 * i;
         if (bits < 0)
             bits = 0;
+        // 52, 40, 28, 16, 4, 0
         plain = ((cipher ^ key) >> bits) << bits;
         key = plain >> 12;
         printf("round %d:\n", i);
