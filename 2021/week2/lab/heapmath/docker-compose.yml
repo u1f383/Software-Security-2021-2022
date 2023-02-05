@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  heapmath:
+    build: ./
+    volumes:
+      - ./share:/home/heapmath:ro
+      - ./xinetd:/etc/xinetd.d/heapmath:ro
+    ports:
+      - "30208:30208"
+    expose:
+      - "30208"

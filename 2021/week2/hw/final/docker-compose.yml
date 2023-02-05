@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  final:
+    build: ./
+    volumes:
+      - ./share:/home/final:ro
+      - ./xinetd:/etc/xinetd.d/final:ro
+    ports:
+      - "30210:30210"
+    expose:
+      - "30210"

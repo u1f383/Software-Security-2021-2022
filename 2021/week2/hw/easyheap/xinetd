@@ -1,0 +1,13 @@
+service easyheap
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/easyheap/run.sh
+    user = easyheap
+    port = 30211
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  easyheap:
+    build: ./
+    volumes:
+      - ./share:/home/easyheap:ro
+      - ./xinetd:/etc/xinetd.d/easyheap:ro
+    ports:
+      - "30211:30211"
+    expose:
+      - "30211"

@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  market:
+    build: ./
+    volumes:
+      - ./share:/home/market:ro
+      - ./xinetd:/etc/xinetd.d/market:ro
+    ports:
+      - "30209:30209"
+    expose:
+      - "30209"

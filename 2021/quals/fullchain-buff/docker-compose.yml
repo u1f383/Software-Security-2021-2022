@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  fullchain-buff:
+    build: ./
+    volumes:
+      - ./share:/home/fullchain-buff:ro
+      - ./xinetd:/etc/xinetd.d/fullchain-buff:ro
+    ports:
+      - "30205:30205"
+    expose:
+      - "30205"

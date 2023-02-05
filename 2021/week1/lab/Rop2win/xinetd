@@ -1,0 +1,13 @@
+service rop2win
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/rop2win/run.sh
+    user = rop2win
+    port = 30204
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

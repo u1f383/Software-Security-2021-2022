@@ -1,0 +1,13 @@
+service fullchain-nerf
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/fullchain-nerf/run.sh
+    user = fullchain-nerf
+    port = 30206
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

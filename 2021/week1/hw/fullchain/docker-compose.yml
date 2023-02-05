@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  fullchain:
+    build: ./
+    volumes:
+      - ./share:/home/fullchain:ro
+      - ./xinetd:/etc/xinetd.d/fullchain:ro
+    ports:
+      - "30201:30201"
+    expose:
+      - "30201"

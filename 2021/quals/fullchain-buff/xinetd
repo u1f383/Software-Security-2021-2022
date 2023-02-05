@@ -1,0 +1,13 @@
+service fullchain-buff
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/fullchain-buff/run.sh
+    user = fullchain-buff
+    port = 30205
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

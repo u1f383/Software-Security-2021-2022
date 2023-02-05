@@ -1,0 +1,12 @@
+service myfs
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/admin/quals/myfs/run.sh
+    user = admin
+    port = 30213
+    flags = REUSE
+    wait = no
+}

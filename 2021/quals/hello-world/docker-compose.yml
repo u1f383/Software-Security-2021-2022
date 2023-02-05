@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  hello-world:
+    build: ./
+    volumes:
+      - ./share:/home/hello-world:ro
+      - ./xinetd:/etc/xinetd.d/hello-world:ro
+    ports:
+      - "30212:30212"
+    expose:
+      - "30212"

@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  got2win:
+    build: ./
+    volumes:
+      - ./share:/home/got2win:ro
+      - ./xinetd:/etc/xinetd.d/got2win:ro
+    ports:
+      - "30203:30203"
+    expose:
+      - "30203"

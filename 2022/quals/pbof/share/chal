@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+from ctypes import *
+
+libc = cdll.LoadLibrary("/lib/x86_64-linux-gnu/libc.so.6")
+
+# setup
+stdin = c_void_p.in_dll(libc, 'stdin')
+stdout = c_void_p.in_dll(libc, 'stdout')
+stderr = c_void_p.in_dll(libc, 'stderr')
+setvbuf = libc.setvbuf
+setvbuf(stdin, None, 2, 0)
+setvbuf(stdout, None, 2, 0)
+setvbuf(stderr, None, 2, 0)
+
+gets = libc.gets
+printf = libc.printf
+name = create_string_buffer(0x20)
+
+printf(b"[Gift %p]\n", gets)
+printf(b"What's your name ?")
+gets(name)
+printf(b"Hello %s", name)
+

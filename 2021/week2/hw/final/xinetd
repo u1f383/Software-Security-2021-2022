@@ -1,0 +1,13 @@
+service final
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/final/run.sh
+    user = final
+    port = 30210
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

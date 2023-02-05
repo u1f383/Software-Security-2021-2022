@@ -1,0 +1,13 @@
+service hello-world
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/hello-world/run.sh
+    user = hello-world
+    port = 30212
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}
