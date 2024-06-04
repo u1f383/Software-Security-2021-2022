@@ -1,0 +1,13 @@
+service two-gadget
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/<redacted>/run.sh
+    user = two-gadget
+    port = 45126
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

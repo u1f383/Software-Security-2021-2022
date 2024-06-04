@@ -1,0 +1,13 @@
+service sugar
+{
+    disable = no
+    type = UNLISTED
+    socket_type = stream
+    protocol = tcp
+    server = /home/sugar/run.sh
+    user = sugar
+    port = 45124
+    flags = REUSE
+    bind = 0.0.0.0
+    wait = no
+}

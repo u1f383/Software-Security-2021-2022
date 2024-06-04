@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  two-gadget:
+    build: ./
+    volumes:
+      - ./share:/home/<redacted>:ro
+      - ./xinetd:/etc/xinetd.d/two-gadget:ro
+    ports:
+      - "45126:45126"
+    expose:
+      - "45126"
